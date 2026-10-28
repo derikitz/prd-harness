@@ -31,6 +31,8 @@ npx prd-harness init
 claude
 ```
 
+Using pnpm? Swap `npx` for `pnpm dlx` in any command here, e.g. `pnpm dlx prd-harness init`. Don't use `pnpm add prd-harness`: that only adds it as a dependency and doesn't install the harness into your project.
+
 Then, inside Claude Code:
 
 | New project | Existing project |
