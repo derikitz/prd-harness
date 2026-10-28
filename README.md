@@ -158,8 +158,17 @@ npm link                         # once: makes `prd-harness` available everywher
 prd-harness init ../some-test-project
 
 npm pack --dry-run               # check what will be published
-npm version patch && npm publish # release
 ```
+
+### Releasing
+Releases are published to npm by GitHub Actions (`.github/workflows/publish.yml`) when a version tag is pushed:
+
+```bash
+npm version patch                # or minor / major — bumps package.json and creates the tag
+git push --follow-tags
+```
+
+The workflow checks that the tag matches `package.json`, smoke-tests the CLI, then publishes with [npm trusted publishing](https://docs.npmjs.com/trusted-publishers) — no npm token is stored in GitHub, and every release gets a provenance badge.
 
 ## License
 

@@ -2,6 +2,12 @@
   "name": "prd-harness",
   "version": "0.1.0",
   "description": "Claude Code setup that runs projects as PRD -> WBS -> tasks, with engineer, tester, security and reviewer subagents.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/derikitz/prd-harness.git"
+  },
+  "homepage": "https://github.com/derikitz/prd-harness#readme",
+  "bugs": "https://github.com/derikitz/prd-harness/issues",
   "bin": {
     "prd-harness": "bin/cli.js"
   },

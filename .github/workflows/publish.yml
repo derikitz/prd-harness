@@ -1,0 +1,51 @@
+name: Publish to npm
+
+# Release: `npm version patch|minor|major` then `git push --follow-tags`
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write # npm trusted publishing (OIDC) + provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Use an npm version that supports trusted publishing
+        run: npm install -g npm@^11.5.1
+
+      - name: Check tag matches package.json version
+        run: |
+          expected="v$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $expected"
+            exit 1
+          fi
+
+      - name: Smoke test the CLI
+        run: |
+          node bin/cli.js --version
+          project="$(mktemp -d)"
+          node bin/cli.js init "$project"
+          for f in AGENTS.md CLAUDE.md .claude/harness/WORKFLOW.md .claude/agents/engineer.md .claude/skills/owasp-checklist/SKILL.md; do
+            test -f "$project/$f" || { echo "::error::Missing $f after init"; exit 1; }
+          done
+          test -d "$project/tasks/todo" || { echo "::error::Missing tasks/todo after init"; exit 1; }
+          # A second run must not duplicate anything
+          node bin/cli.js init "$project" > /dev/null
+          [ "$(grep -c '^@AGENTS.md' "$project/CLAUDE.md")" -eq 1 ] || { echo "::error::Second init duplicated CLAUDE.md imports"; exit 1; }
+
+      - name: Show package contents
+        run: npm pack --dry-run
+
+      - name: Publish
+        run: npm publish --access public
