@@ -1,6 +1,6 @@
 {
   "name": "prd-harness",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Claude Code setup that runs projects as PRD -> WBS -> tasks, with engineer, tester, security and reviewer subagents.",
   "repository": {
     "type": "git",
@@ -23,6 +23,12 @@
   "engines": {
     "node": ">=18"
   },
-  "keywords": ["claude-code", "agents", "prd", "wbs", "project-management"],
+  "keywords": [
+    "claude-code",
+    "agents",
+    "prd",
+    "wbs",
+    "project-management"
+  ],
   "license": "MIT"
 }
