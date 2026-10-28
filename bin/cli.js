@@ -8,15 +8,19 @@ const HARNESS_DIRS = ['.claude/agents', '.claude/commands', '.claude/harness', '
 const PROJECT_DIRS = ['docs', 'tasks/todo', 'tasks/doing', 'tasks/review', 'tasks/done', 'tasks/blocked'];
 const CLAUDE_IMPORTS = ['@AGENTS.md', '@.claude/harness/WORKFLOW.md'];
 
-const HELP = `Usage: prd-harness init [dir] [--force]
+const LOCAL_FILE = '.claude/harness/local.md';
 
-Installs the PRD -> WBS -> tasks harness into a project (default: current folder).
+const HELP = `Usage:
+  prd-harness init [dir] [--force]     Install the harness into a project (default: current folder)
+  prd-harness status [dir] [--json]    Show the task board, ready tasks and traceability gaps
 
-  --force     Overwrite harness files (.claude/agents, commands, harness, skills) with this version
+Options:
+  --force     init: overwrite the kit's files (.claude/agents, commands, harness, skills) with this version
+  --json      status: machine-readable output
   --help      Show this help
   --version   Show version
 
-Existing AGENTS.md / CLAUDE.md are never overwritten; only the workflow lines are appended.`;
+init never overwrites AGENTS.md, CLAUDE.md or ${LOCAL_FILE}; it only appends the workflow lines.`;
 
 function log(action, target) {
   console.log(`${action.padEnd(8)} ${target}`);
@@ -54,6 +58,13 @@ function init(target, force) {
       fs.copyFileSync(file, dest);
       log('copied', rel);
     }
+  }
+
+  // Project customizations: created once, never overwritten (not even with --force)
+  const localPath = path.join(target, LOCAL_FILE);
+  if (!fs.existsSync(localPath)) {
+    fs.copyFileSync(path.join(SOURCE, '.claude/harness/templates/local.md'), localPath);
+    log('created', LOCAL_FILE);
   }
 
   // 2. Project folders
@@ -97,11 +108,11 @@ function main(argv) {
   const [command, dir = '.'] = argv.filter((a) => !a.startsWith('-'));
 
   if (flags.includes('--version')) return console.log(require('../package.json').version);
-  if (flags.includes('--help') || command !== 'init') {
-    console.log(HELP);
-    return command && command !== 'init' && !flags.includes('--help') ? process.exit(1) : undefined;
-  }
-  init(path.resolve(dir), flags.includes('--force'));
+  if (flags.includes('--help') || !command) return console.log(HELP);
+  if (command === 'init') return init(path.resolve(dir), flags.includes('--force'));
+  if (command === 'status') return require('../.claude/harness/board.js').run(path.resolve(dir), flags.includes('--json'));
+  console.log(HELP);
+  process.exit(1);
 }
 
 try {

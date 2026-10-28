@@ -17,7 +17,7 @@ Templates are in `.claude/harness/templates/`.
 - Small, direct requests from the user (a quick fix, a question, a one-off script) don't need a task — just do them. If one grows bigger than expected, suggest adding it to the PRD/WBS rather than letting it expand silently.
 
 ## Rules
-1. **Top-down changes.** Change the PRD first, then the WBS, then tasks. No task without a WBS work package; no work package without a PRD requirement — except enabler work (repo setup, CI, tooling), which lives under a WBS branch marked `(enabler)`.
+1. **Top-down changes.** Change the PRD first, then the WBS, then tasks. No task without a WBS work package; no work package without a PRD requirement — except enabler work (repo setup, CI, tooling), which lives under a WBS branch marked `(enabler)`, and bugs (rule 15).
 2. **The user owns the PRD.** Draft and propose changes, but get the user's confirmation before marking a requirement `approved` or changing an approved one. Log every change in the PRD Changelog and bump its version.
 3. **100% rule.** The children of a WBS element cover all of its scope and nothing outside it. Leaf elements are *work packages*: one deliverable, small enough to verify on its own.
 4. **Never renumber.** Once a WBS code or task ID exists, don't change it — other files reference it. Mark obsolete items `dropped` instead of deleting them.
@@ -30,10 +30,16 @@ Templates are in `.claude/harness/templates/`.
 11. **Checks scale with risk.** Every task has `risk: low | normal | high`. Low → reviewer only. Normal → tester + reviewer. High → tester + security + reviewer. The reviewer always does a light OWASP pass. A task reaches `done/` only when every check it needs passes. Using this workflow counts as the user's go-ahead to create and maintain `code-doc.md` and `test-doc.md`, and for the tester to write tests (this replaces "ask first" in AGENTS.md principles 4–5). Installing a test framework is still a new dependency that needs approval.
 12. **Security from the start.** The PRD covers security and privacy; the WBS has a `Security (enabler)` branch. Security findings get IDs (`SEC-001`) in `docs/security.md`; fixes that need their own work become work packages under the security branch.
 13. **Map first.** `code-doc.md` is the project map. Every agent reads the sections relevant to its task first (find them by heading — don't read the whole file when it's large), then opens only the files it points to. Search the codebase only for what the map doesn't cover — the engineer adds the missing entry, checkers report it as a gap. The map is for navigation: always read the actual code you change or verify — never judge code from its doc entry.
+14. **One commit per task.** In a git repo, `/next` commits each task when it reaches `done/`: only that task's files, with the message `<id>: <title> (<requirement IDs>)`. It never pushes. This keeps each review's `git diff` to one task and lets any task be undone with `git revert`.
+15. **Bugs skip the planning round.** A bug — the software not doing what an existing requirement says — goes straight onto the board with `/bug`, as a `B-` task linked to the requirement it breaks and its work package. Bugs go before feature tasks of the same priority. A "bug" that needs a new or changed requirement is a PRD change instead.
+16. **Project customizations live in `.claude/harness/local.md`.** Before following any kit command or agent instructions, read the matching section of that file (`All agents`, your role, or `Commands`) if it has content — it overrides the kit's defaults. `init --force` never overwrites it, so customize there, not in the kit's files.
 
 ## Naming
-- Task ID: `T-<wbs code>-<letter>`, e.g. `T-1.2-a`, `T-1.2-b`.
+- Task ID: `T-<wbs code>-<letter>`, e.g. `T-1.2-a`, `T-1.2-b`. Bug ID: `B-<number>`, e.g. `B-001`.
 - Task file: `<id>-<short-slug>.md`, e.g. `tasks/todo/T-1.2-a-login-form.md`.
+
+## Board Script
+`node .claude/harness/board.js` (add `--json` for machine-readable output) reads the board with plain code — no tokens: counts per folder, the ready tasks in `/next` order, and traceability gaps (unlinked requirements, packages without tasks, broken IDs and dependencies, status/folder mismatches). Use it instead of reading every task file. If Node isn't available, read the files directly.
 
 ## In Claude Code
 The main session acts as project manager: it owns the PRD, WBS and task board, and delegates to subagents:
@@ -52,7 +58,8 @@ The main session acts as project manager: it owns the PRD, WBS and task board, a
 | `/design [screen or area]` | Optional, UI projects only: design system and screen specs in `docs/design.md` |
 | `/wbs` | Build or update the WBS from the PRD |
 | `/tasks [wbs code]` | Turn work packages into task files |
-| `/next [task id]` | Pick the next ready task and run the checks its risk needs |
+| `/next [task id]` | Pick the next ready task, run the checks its risk needs, commit it |
+| `/bug <what's wrong>` | Log a bug as a task linked to the requirement it breaks |
 | `/security [area]` | Full-project security audit; schedule fixes as WBS work |
 | `/status` | Board summary and traceability gaps (read-only) |
 
@@ -61,4 +68,5 @@ The main session acts as project manager: it owns the PRD, WBS and task board, a
 - Every subagent start re-reads context, so checks run only when the task's risk calls for them.
 - A current `code-doc.md` saves every agent from exploring the codebase (rule 13). If it has drifted, run `/codedoc` rather than letting each agent search.
 - `/loop 30m /next` re-checks the board on every run even when nothing is ready — use it only when there's a queue of ready tasks, otherwise run `/next` by hand.
-- To change a subagent's model, edit `model:` in its file in `.claude/agents/`.
+- Use the board script (above) for anything about the board's state, instead of reading task files.
+- To change a subagent's model, override it in `.claude/harness/local.md`, or edit `model:` in its file in `.claude/agents/` (an edit there is lost on `init --force`).

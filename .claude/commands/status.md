@@ -4,17 +4,10 @@ description: Show the task board and traceability gaps (read-only)
 
 Follow `.claude/harness/WORKFLOW.md`. Don't change any files.
 
-Read `docs/prd.md`, `docs/wbs.md` and every file in `tasks/*/`, then report:
+1. Run `node .claude/harness/board.js` and show its output as-is: the board, the ready tasks in `/next` order, and the gaps. (If Node isn't available, work these out by reading `tasks/*/`, `docs/prd.md` and `docs/wbs.md`.)
+2. Add only what the script can't tell:
+   - **Progress per milestone:** done vs. total tasks for each milestone in `docs/prd.md` (match its requirement IDs to the tasks' `requirements`).
+   - **Open questions** in the PRD.
+   - For each gap, one line on how to fix it (usually `/wbs`, `/tasks` or moving a file).
 
-1. **Board:** task count per folder. List the tasks in `doing/`, `review/` and `blocked/` (with the block reason from the Log).
-2. **Next up:** the ready tasks, in the order `/next` would pick them. Flag any that need approval.
-3. **Progress:** done vs. total tasks per top-level WBS area and per PRD milestone.
-4. **Gaps:**
-   - Approved requirements with no work package
-   - Work packages with no tasks
-   - Tasks pointing to WBS codes or requirement IDs that don't exist
-   - `depends_on` entries pointing to tasks that don't exist (or cycles)
-   - Tasks whose frontmatter `status` doesn't match their folder
-   - Open questions in the PRD
-
-Keep it short. Use tables where they help.
+Keep it short.

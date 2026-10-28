@@ -73,8 +73,14 @@ You approve the PRD before anything is built. When requirements change, run `/pr
 
 If a check fails, the same engineer fixes it, and the check runs again. Task files move through `tasks/todo → doing → review → done` (or `blocked`), so the folder *is* the board.
 
-### 3. Track
+In a git repo, every finished task becomes **one commit** — `T-1.2-a: Login form (FR-003)` — so each task can be reviewed or reverted on its own, and your history traces back to requirements. Nothing is ever pushed for you.
+
+### 3. Fix bugs
+`/bug <what's wrong>` logs a bug as a `B-001` task linked to the requirement it breaks — no planning round needed. Bugs go ahead of feature work of the same priority, and the tester adds a regression test for each.
+
+### 4. Track
 - `/status` — the board, what's next, progress per milestone, and traceability gaps.
+- `npx prd-harness status` — the same board and gaps from your terminal, computed by a script: instant, and uses no tokens.
 - `/security` — a full-project security audit; run it before each release.
 
 ## The team
@@ -87,7 +93,7 @@ If a check fails, the same engineer fixes it, and the check runs again. Task fil
 | `security` | Deep OWASP review on high-risk tasks and audits | your default |
 | `reviewer` | Final sign-off: criteria, coding rules, light security pass. Read-only | Sonnet (Haiku for low risk) |
 
-Change any agent's model with the `model:` line in its file in `.claude/agents/`.
+Customize any agent — its model, your test framework, conventions — in `.claude/harness/local.md` (see [Customizing](#customizing)).
 
 ## Commands
 
@@ -98,7 +104,8 @@ Change any agent's model with the `model:` line in its file in `.claude/agents/`
 | `/design [screen]` | Design system and screen specs (optional) |
 | `/wbs` | Build or update the WBS from the PRD |
 | `/tasks [wbs code]` | Turn work packages into task files |
-| `/next [task id]` | Build and check the next ready task |
+| `/next [task id]` | Build, check and commit the next ready task |
+| `/bug <what's wrong>` | Log a bug as a task linked to the requirement it breaks |
 | `/status` | Board summary and gaps (read-only) |
 | `/security [area]` | Full security audit; schedule fixes as WBS work |
 
@@ -114,6 +121,8 @@ your-project/
 │   ├── skills/               owasp-checklist (OWASP Top 10:2025, API, LLM)
 │   └── harness/
 │       ├── WORKFLOW.md       The rules of the PRD → WBS → tasks workflow
+│       ├── board.js          Board script: status, ready tasks, gaps (no tokens)
+│       ├── local.md          Your customizations — never overwritten
 │       └── templates/        prd, design, wbs, task, code-doc, test-doc, security
 ├── docs/                     prd.md, wbs.md, design.md, security.md (created as you go)
 └── tasks/
@@ -124,9 +133,22 @@ Created as the work goes on: `code-doc.md` (the code map) and `test-doc.md` (tes
 
 ## Tips for keeping usage low
 
+- Check the board with `npx prd-harness status` in your terminal instead of `/status` when you only need the numbers.
 - Work one task at a time with `/next`. Use `/loop 30m /next` only when there's a queue of ready tasks — each run reads the board even when there's nothing to do.
 - Keep `code-doc.md` current. If it falls behind, run `/codedoc` instead of letting each agent search the code.
 - Let `/tasks` label risk honestly: most tasks should be `normal`, not `high`.
+
+## Customizing
+
+Put project-specific changes in **`.claude/harness/local.md`** — not in the kit's own files, which updates replace. It has a section for all agents, one per agent, and one for commands, and anything you write there overrides the kit's defaults:
+
+```markdown
+## tester
+- Use Vitest. Put tests next to the file as `*.test.ts`. Run with `npm test`.
+
+## Commands
+- /next: never commit — leave changes staged for me.
+```
 
 ## Updating
 
@@ -136,15 +158,17 @@ Re-run `init` with `--force` in a project to replace the kit's files with the la
 npx prd-harness@latest init --force
 ```
 
-This overwrites only the kit's own files in `.claude/agents`, `commands`, `harness` and `skills`. Your PRD, WBS, tasks and docs are never touched.
+This overwrites only the kit's own files in `.claude/agents`, `commands`, `harness` and `skills`. Your `local.md`, PRD, WBS, tasks and docs are never touched.
 
 ## CLI reference
 
 ```
-prd-harness init [dir] [--force]
+prd-harness init [dir] [--force]     Install the harness into a project
+prd-harness status [dir] [--json]    Show the board, ready tasks and traceability gaps
 
   dir         Project folder (default: current folder)
-  --force     Overwrite the kit's files with this version
+  --force     init: overwrite the kit's files with this version
+  --json      status: machine-readable output
   --help      Show help
   --version   Show version
 ```

@@ -5,6 +5,8 @@ description: Implements a single task file from tasks/doing/. Use when a task fr
 
 You are the engineer. You are given the path to one task file.
 
+If `.claude/harness/local.md` has content under `## All agents` or `## engineer`, follow it — it overrides these instructions.
+
 1. Read the task file, the PRD requirements and WBS work package it references (`docs/prd.md`, `docs/wbs.md`), and `AGENTS.md`. Follow the AGENTS.md rules throughout.
 2. Find your way with the map first (WORKFLOW.md rule 13): read the relevant sections of `code-doc.md`, then open only the files it points to. Read the actual code before changing it. For UI work, follow `docs/design.md` if it exists.
 3. Implement only what the task's Scope and Acceptance Criteria call for. If you notice something outside scope, add it to the task's Notes as a suggestion — don't do it.

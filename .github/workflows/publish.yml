@@ -40,9 +40,13 @@ jobs:
             test -f "$project/$f" || { echo "::error::Missing $f after init"; exit 1; }
           done
           test -d "$project/tasks/todo" || { echo "::error::Missing tasks/todo after init"; exit 1; }
-          # A second run must not duplicate anything
-          node bin/cli.js init "$project" > /dev/null
+          # A second run must not duplicate anything, and --force must keep local.md
+          echo "- custom" >> "$project/.claude/harness/local.md"
+          node bin/cli.js init "$project" --force > /dev/null
           [ "$(grep -c '^@AGENTS.md' "$project/CLAUDE.md")" -eq 1 ] || { echo "::error::Second init duplicated CLAUDE.md imports"; exit 1; }
+          grep -q -- "- custom" "$project/.claude/harness/local.md" || { echo "::error::init --force overwrote local.md"; exit 1; }
+          # The board script runs on an empty board
+          node bin/cli.js status "$project"
 
       - name: Show package contents
         run: npm pack --dry-run

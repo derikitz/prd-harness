@@ -1,6 +1,7 @@
 ---
 id: T-1.1-a
 title: <short imperative title>
+type: task           # task | bug (bugs also get found_in: <task ID>)
 wbs: 1.1
 requirements: [FR-001]
 status: todo         # todo | doing | review | done | blocked
