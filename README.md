@@ -37,6 +37,8 @@ Then, inside Claude Code:
 |---|---|
 | `/prd` → `/wbs` → `/tasks` → `/next` | `/codedoc` → `/prd` → `/wbs` → `/tasks` → `/next` |
 
+Already have a PRD or WBS? Convert it once with `/prd import <file>`, then `/wbs import <file>` (one combined `PRD & WBS.md` works too: pass it to both). Your originals are left untouched, and `init` lists any it finds. After that, agents read only `docs/prd.md` and `docs/wbs.md`, so the import doesn't cost extra tokens on later runs.
+
 `init` never overwrites your files. If the project already has an `AGENTS.md` or `CLAUDE.md`, it only appends the lines that connect the workflow.
 
 ## How it works
@@ -100,9 +102,9 @@ Customize any agent — its model, your test framework, conventions — in `.cla
 | Command | What it does |
 |---|---|
 | `/codedoc [area]` | Map the codebase into `code-doc.md`, or fix entries that no longer match the code |
-| `/prd [change]` | Create the PRD by interviewing you, or apply a change to it |
+| `/prd [change, or import <file>]` | Create the PRD by interviewing you, import an existing one, or apply a change to it |
 | `/design [screen]` | Design system and screen specs (optional) |
-| `/wbs` | Build or update the WBS from the PRD |
+| `/wbs [import <file>]` | Build or update the WBS from the PRD, or import an existing one |
 | `/tasks [wbs code]` | Turn work packages into task files |
 | `/next [task id]` | Build, check and commit the next ready task |
 | `/bug <what's wrong>` | Log a bug as a task linked to the requirement it breaks |

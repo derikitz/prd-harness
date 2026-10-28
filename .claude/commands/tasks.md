@@ -5,7 +5,7 @@ argument-hint: [WBS code, or blank for every package without tasks]
 
 Follow `.claude/harness/WORKFLOW.md`. Read `docs/wbs.md` and `docs/prd.md`; if the WBS doesn't exist, stop and suggest `/wbs`.
 
-Scope: $ARGUMENTS — if blank, every work package with status `todo` that has no task files yet (check all `tasks/*/` folders).
+Scope: $ARGUMENTS — if blank, every work package with status `todo` or `in-progress` that has no task files yet (check all `tasks/*/` folders). For an `in-progress` package (from an imported WBS), check `code-doc.md` for what's already built and create tasks only for what's left.
 
 For each work package in scope:
 1. Split it into tasks. Each task is one focused change that can be finished and verified in one session; most packages need 1–3.

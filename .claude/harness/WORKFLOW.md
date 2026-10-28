@@ -16,6 +16,9 @@ Templates are in `.claude/harness/templates/`.
 - Use it for planned feature work on the project.
 - Small, direct requests from the user (a quick fix, a question, a one-off script) don't need a task — just do them. If one grows bigger than expected, suggest adding it to the PRD/WBS rather than letting it expand silently.
 
+## Existing PRD or WBS
+If the project already has a PRD or WBS in its own format, convert it once with `/prd import <file>` and then `/wbs import <file>` — for a combined file (e.g. `PRD & WBS.md`), pass the same file to both; each takes only its own part. The originals stay untouched for people to refer to, but from then on `docs/prd.md` and `docs/wbs.md` are the source of truth and agents never read the originals. That keeps every later command reading one compact file. The `source:` frontmatter field and `(src: …)` references point back to the original.
+
 ## Rules
 1. **Top-down changes.** Change the PRD first, then the WBS, then tasks. No task without a WBS work package; no work package without a PRD requirement — except enabler work (repo setup, CI, tooling), which lives under a WBS branch marked `(enabler)`, and bugs (rule 15).
 2. **The user owns the PRD.** Draft and propose changes, but get the user's confirmation before marking a requirement `approved` or changing an approved one. Log every change in the PRD Changelog and bump its version.
@@ -54,9 +57,9 @@ The main session acts as project manager: it owns the PRD, WBS and task board, a
 | Command | What it does |
 |---|---|
 | `/codedoc [area]` | Map the codebase into `code-doc.md`, or fix drift (run first on existing projects) |
-| `/prd [change]` | Create the PRD by interviewing the user, or apply a change to it |
+| `/prd [change, or import <file>]` | Create the PRD by interviewing the user, import an existing one, or apply a change to it |
 | `/design [screen or area]` | Optional, UI projects only: design system and screen specs in `docs/design.md` |
-| `/wbs` | Build or update the WBS from the PRD |
+| `/wbs [import <file>]` | Build or update the WBS from the PRD, or import an existing one |
 | `/tasks [wbs code]` | Turn work packages into task files |
 | `/next [task id]` | Pick the next ready task, run the checks its risk needs, commit it |
 | `/bug <what's wrong>` | Log a bug as a task linked to the requirement it breaks |

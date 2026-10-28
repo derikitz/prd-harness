@@ -74,6 +74,7 @@ function readBoard(dir) {
         status: cells[cells.length - 1].toLowerCase(),
       });
     }
+    if (!requirements.size) gaps.push('docs/prd.md has no requirement rows in the template format (| FR-001 | … |) — run /prd import');
   }
 
   // Work packages from the WBS
@@ -87,6 +88,7 @@ function readBoard(dir) {
         status: cells[cells.length - 1].toLowerCase(),
       });
     }
+    if (!packages.size) gaps.push('docs/wbs.md has no work package rows in the template format (| 1.1 | … |) — run /wbs import');
   }
 
   // Tasks

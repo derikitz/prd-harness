@@ -3,6 +3,7 @@ title: <Product name>
 version: 0.1
 status: draft        # draft | approved
 updated: YYYY-MM-DD
+source: —            # original document this was imported from, if any
 ---
 
 # PRD: <Product name>

@@ -1,6 +1,7 @@
 ---
 prd_version: 0.1     # PRD version this WBS was last reconciled with
 updated: YYYY-MM-DD
+source: —            # original document this was imported from, if any
 ---
 
 # WBS: <Product name>

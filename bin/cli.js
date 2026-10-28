@@ -9,6 +9,9 @@ const PROJECT_DIRS = ['docs', 'tasks/todo', 'tasks/doing', 'tasks/review', 'task
 const CLAUDE_IMPORTS = ['@AGENTS.md', '@.claude/harness/WORKFLOW.md'];
 
 const LOCAL_FILE = '.claude/harness/local.md';
+// Existing planning docs to offer for import: checked by file name only, in the project root and docs/.
+const PLANNING_DOC = /(prd|requirement|spec|wbs|work.?breakdown)[^/\\]*\.(md|txt|pdf|docx|csv|xlsx)$/i;
+const HARNESS_DOCS = ['docs/prd.md', 'docs/wbs.md'];
 
 const HELP = `Usage:
   prd-harness init [dir] [--force]     Install the harness into a project (default: current folder)
@@ -100,7 +103,23 @@ function init(target, force) {
     log('note', 'If CLAUDE.md repeats rules that are now in AGENTS.md, remove the duplicates.');
   }
 
-  console.log('\nDone. In the project, run: claude, then /prd');
+  const existing = findPlanningDocs(target);
+  if (existing.length) {
+    console.log('\nFound existing planning docs:');
+    for (const file of existing) console.log(`  ${file}`);
+    console.log('\nDone. In the project, run: claude, then /prd import <file> (and /wbs import <file> for a WBS — the same file if it holds both)');
+  } else {
+    console.log('\nDone. In the project, run: claude, then /prd');
+  }
+}
+
+function findPlanningDocs(target) {
+  return ['.', 'docs']
+    .filter((dir) => fs.existsSync(path.join(target, dir)))
+    .flatMap((dir) => fs.readdirSync(path.join(target, dir), { withFileTypes: true })
+      .filter((entry) => entry.isFile() && PLANNING_DOC.test(entry.name))
+      .map((entry) => path.posix.join(dir, entry.name)))
+    .filter((file) => !HARNESS_DOCS.includes(file));
 }
 
 function main(argv) {
