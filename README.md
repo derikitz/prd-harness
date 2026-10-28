@@ -1,3 +1,5 @@
+[![Publish to npm](https://github.com/derikitz/prd-harness/actions/workflows/publish.yml/badge.svg)](https://github.com/derikitz/prd-harness/actions/workflows/publish.yml)
+
 # prd-harness
 
 **Run your software projects with a small AI team inside Claude Code — planned from a PRD, broken down into a WBS, built and checked task by task.**
