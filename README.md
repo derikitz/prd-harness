@@ -114,6 +114,8 @@ Customize any agent — its model, your test framework, conventions — in `.cla
 | `/bug <what's wrong>` | Log a bug as a task linked to the requirement it breaks |
 | `/status` | Board summary and gaps (read-only) |
 | `/security [area]` | Full security audit; schedule fixes as WBS work |
+| `/check-sec [full or chapter]` | OWASP ASVS 5.0 check at your PRD's level — run it whenever you like; it never runs during `/next` |
+| `/check-soc2 [full]` | SOC 2 readiness check: what the code supports, what's missing, and the evidence only you can provide |
 
 ## What gets installed
 
@@ -129,8 +131,9 @@ your-project/
 │       ├── WORKFLOW.md       The rules of the PRD → WBS → tasks workflow
 │       ├── board.js          Board script: status, ready tasks, gaps (no tokens)
 │       ├── local.md          Your customizations — never overwritten
-│       └── templates/        prd, design, wbs, task, code-doc, test-doc, security
-├── docs/                     prd.md, wbs.md, design.md, security.md (created as you go)
+│       ├── compliance/       ASVS 5.0.0 requirements (official CSV, CC BY-SA 4.0) and SOC 2 readiness map
+│       └── templates/        prd, design, wbs, task, code-doc, test-doc, security, compliance
+├── docs/                     prd.md, wbs.md, design.md, security.md, compliance.md (created as you go)
 └── tasks/
     ├── todo/  doing/  review/  done/  blocked/
 ```

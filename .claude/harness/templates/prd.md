@@ -43,7 +43,8 @@ Priority: Must / Should / Could / Won't (MoSCoW). Status: draft / approved / don
 - **Data handled:** (personal data, payments, health, none…)
 - **Who can do what:** (roles and what each may access)
 - **Authentication:** (email/password, OAuth, SSO, MFA needed?)
-- **Compliance:** (GDPR, PCI, HIPAA, none)
+- **Compliance:** (GDPR, PCI, HIPAA, SOC 2 + categories, none)
+- **ASVS level:** (L1 any app · L2 personal or business data · L3 high-value — used by `/check-sec`)
 
 ## 7. Constraints and Assumptions
 - Stack, budget, deadlines, integrations, hosting…

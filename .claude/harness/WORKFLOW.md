@@ -8,7 +8,7 @@ Planned work flows through three layers. Each layer traces back to the one above
 | WBS | `docs/wbs.md` | Which deliverables make up the work? | `1`, `1.2`, `1.2.3` |
 | Tasks | `tasks/<status>/*.md` | What does one agent do in one session? | `T-1.2-a` |
 
-Supporting records: `code-doc.md` (the project map every agent navigates by, kept by the engineer — rule 13), `test-doc.md` (test cases, kept by the tester), `docs/security.md` (baseline and findings `SEC-001`) and, for UI projects, `docs/design.md` (design system and screen specs, from `/design`).
+Supporting records: `code-doc.md` (the project map every agent navigates by, kept by the engineer — rule 13), `test-doc.md` (test cases, kept by the tester), `docs/security.md` (baseline and findings `SEC-001`), `docs/compliance.md` (ASVS and SOC 2 results, from `/check-sec` and `/check-soc2`) and, for UI projects, `docs/design.md` (design system and screen specs, from `/design`).
 
 Templates are in `.claude/harness/templates/`.
 
@@ -74,6 +74,8 @@ The main session acts as project manager: it owns the PRD, WBS and task board, a
 | `/next [task id]` | Pick the next ready task, run the checks its risk needs, commit it |
 | `/bug <what's wrong>` | Log a bug as a task linked to the requirement it breaks |
 | `/security [area]` | Full-project security audit; schedule fixes as WBS work |
+| `/check-sec [full or chapter]` | On demand, not part of `/next`: OWASP ASVS 5.0 check at the PRD's level, results in `docs/compliance.md` |
+| `/check-soc2 [full]` | On demand, not part of `/next`: SOC 2 readiness (not certification), results in `docs/compliance.md` |
 | `/status` | Board summary and traceability gaps (read-only) |
 
 ### Keeping usage down

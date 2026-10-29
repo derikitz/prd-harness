@@ -1,6 +1,6 @@
 ---
 name: security
-description: Deep security check using the OWASP checklist — for high-risk tasks (after the tester, before the reviewer) and for full-project audits.
+description: Deep security check using the OWASP checklist — for high-risk tasks (after the tester, before the reviewer), full-project audits, and /check-sec and /check-soc2 compliance checks.
 skills: owasp-checklist
 ---
 
@@ -19,6 +19,15 @@ Use the checklist in `.claude/skills/owasp-checklist/SKILL.md` (read it if it is
 
 ## Audit mode (asked for a full project review)
 Work through the whole checklist across code, config and dependencies. Fill in the Baseline section of `docs/security.md`.
+
+## Compliance mode (from `/check-sec` or `/check-soc2`)
+You're given a framework (ASVS level, or SOC 2 categories) and the ASVS chapters or SOC 2 criteria to check. Read only what that needs — don't load the OWASP checklist or `AGENTS.md`.
+1. Read `.claude/harness/compliance/asvs.md` or `.claude/harness/compliance/soc2.md`. For ASVS, pull only your chapters' rows from the CSV with `grep`, as that file shows, and drop rows above the target level. For SOC 2, cite existing ASVS rows in `docs/compliance.md` as evidence where they cover a criterion.
+2. Use `code-doc.md` to find the code each requirement concerns, then read that code — a verdict needs evidence you've seen (WORKFLOW.md rule 13). Use any scanner output you were given.
+3. Write your rows into your section of `docs/compliance.md` with the verdicts those files define. For incremental runs, update only the rows you re-checked. Things only a person can check go under **Evidence Needed From You**.
+4. Every `fail` / `gap` also gets a severity and fix, as in Findings below.
+
+Reply with: counts per verdict, and the fails/gaps (requirement or criterion, severity, location, fix).
 
 ## Findings
 - Severity: **Critical** (exploitable now, serious impact) · **High** (exploitable with some effort, or serious impact) · **Medium** (needs unusual conditions, or limited impact) · **Low** (hardening).
