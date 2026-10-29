@@ -12,6 +12,7 @@ const LOCAL_FILE = '.claude/harness/local.md';
 // Existing planning docs to offer for import: checked by file name only, in the project root and docs/.
 const PLANNING_DOC = /(prd|requirement|spec|wbs|work.?breakdown)[^/\\]*\.(md|txt|pdf|docx|csv|xlsx)$/i;
 const HARNESS_DOCS = ['docs/prd.md', 'docs/wbs.md'];
+const WORKTREES_IGNORE = '.claude/worktrees/';
 
 const HELP = `Usage:
   prd-harness init [dir] [--force]     Install the harness into a project (default: current folder)
@@ -23,7 +24,7 @@ Options:
   --help      Show this help
   --version   Show version
 
-init never overwrites AGENTS.md, CLAUDE.md or ${LOCAL_FILE}; it only appends the workflow lines.`;
+init never overwrites AGENTS.md, CLAUDE.md, .gitignore or ${LOCAL_FILE}; it only appends the workflow lines.`;
 
 function log(action, target) {
   console.log(`${action.padEnd(8)} ${target}`);
@@ -101,6 +102,14 @@ function init(target, force) {
       log('updated', `CLAUDE.md (added ${line})`);
     }
     log('note', 'If CLAUDE.md repeats rules that are now in AGENTS.md, remove the duplicates.');
+  }
+
+  // 5. .gitignore: each /next session builds in its own worktree under .claude/worktrees/
+  const ignorePath = path.join(target, '.gitignore');
+  const ignore = fs.existsSync(ignorePath) ? fs.readFileSync(ignorePath, 'utf8') : '';
+  if (!ignore.split(/\r?\n/).includes(WORKTREES_IGNORE)) {
+    fs.appendFileSync(ignorePath, `${ignore && !ignore.endsWith('\n') ? '\n' : ''}${WORKTREES_IGNORE}\n`);
+    log('updated', `.gitignore (added ${WORKTREES_IGNORE})`);
   }
 
   const existing = findPlanningDocs(target);

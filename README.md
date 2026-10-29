@@ -79,6 +79,8 @@ If a check fails, the same engineer fixes it, and the check runs again. Task fil
 
 In a git repo, every finished task becomes **one commit** — `T-1.2-a: Login form (FR-003)` — so each task can be reviewed or reverted on its own, and your history traces back to requirements. Nothing is ever pushed for you.
 
+**Running several at once:** open more terminals and run `/next` in each. Each session claims a different task and builds it on its own branch in its own git worktree (`.claude/worktrees/session-N`, reused from task to task), so their changes don't collide. The board stays in your main checkout, so every session can see what the others are working on. Finished tasks are merged back one at a time, with no steps for you unless two tasks change the same code.
+
 ### 3. Fix bugs
 `/bug <what's wrong>` logs a bug as a `B-001` task linked to the requirement it breaks — no planning round needed. Bugs go ahead of feature work of the same priority, and the tester adds a regression test for each.
 
@@ -138,7 +140,7 @@ Created as the work goes on: `code-doc.md` (the code map) and `test-doc.md` (tes
 ## Tips for keeping usage low
 
 - Check the board with `npx prd-harness status` in your terminal instead of `/status` when you only need the numbers.
-- Work one task at a time with `/next`. Use `/loop 30m /next` only when there's a queue of ready tasks — each run reads the board even when there's nothing to do.
+- Work one task at a time with `/next`; parallel sessions use your limits proportionally faster. Use `/loop 30m /next` only when there's a queue of ready tasks — each run reads the board even when there's nothing to do.
 - Keep `code-doc.md` current. If it falls behind, run `/codedoc` instead of letting each agent search the code.
 - Let `/tasks` label risk honestly: most tasks should be `normal`, not `high`.
 

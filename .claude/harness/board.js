@@ -1,13 +1,21 @@
 #!/usr/bin/env node
 // Reads the task board (tasks/, docs/prd.md, docs/wbs.md) with plain code — no model, no tokens.
 // Usage: node .claude/harness/board.js [project dir] [--json]
+//        node .claude/harness/board.js claim <task id> [--worktree session-N]    (run from the main checkout)
+//        node .claude/harness/board.js lock <task id> | unlock
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const STATUSES = ['todo', 'doing', 'review', 'done', 'blocked'];
 const PRIORITY_RANK = { must: 0, should: 1, could: 2 };
 const REQ_ID = /^N?FR-\d+$/;
 const WBS_CODE = /^\d+(\.\d+)*$/;
+const WORKTREES_DIR = '.claude/worktrees';
+const MERGE_LOCK = 'prd-harness-merge.lock';
+const CLAIM_LOCK = 'prd-harness-claim.lock';
+// Lockfiles and dependency lists: when one changes between tasks, a reused worktree needs a reinstall.
+const DEPENDENCY_FILE = /lock|^requirements.*\.txt$|^go\.sum$/i;
 
 function parseFrontmatter(text) {
   const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
@@ -114,6 +122,7 @@ function readBoard(dir) {
         approval: fm.approval || 'none',
         risk: fm.risk || 'normal',
         status: fm.status || '',
+        worktree: fm.worktree || '',
         folder: status,
         file,
         lastLog: lastLogLine(text),
@@ -139,6 +148,9 @@ function readBoard(dir) {
     }
     for (const dep of task.dependsOn) {
       if (!byId.has(dep)) gaps.push(`${task.id}: depends on unknown task ${dep}`);
+    }
+    if ((task.folder === 'doing' || task.folder === 'review') && task.worktree && !fs.existsSync(path.join(dir, task.worktree))) {
+      gaps.push(`${task.id}: in progress, but its worktree ${task.worktree} is missing`);
     }
   }
 
@@ -188,7 +200,7 @@ function formatBoard({ counts, tasks, ready, gaps }) {
     const list = tasks.filter((t) => t.folder === status);
     if (!list.length) continue;
     out.push('', `${status[0].toUpperCase()}${status.slice(1)}:`);
-    for (const t of list) out.push(line(t) + (status === 'blocked' && t.lastLog ? `\n             ↳ ${t.lastLog}` : ''));
+    for (const t of list) out.push(line(t) + (status !== 'blocked' && t.worktree ? `  (${t.worktree})` : '') + (status === 'blocked' && t.lastLog ? `\n             ↳ ${t.lastLog}` : ''));
   }
 
   out.push('', ready.length ? 'Ready (in /next order):' : 'Ready: none');
@@ -202,7 +214,7 @@ function formatBoard({ counts, tasks, ready, gaps }) {
 function run(dir, json) {
   const board = readBoard(dir);
   if (!json) return console.log(formatBoard(board));
-  const brief = (t) => ({ id: t.id, title: t.title, type: t.type, file: t.file, risk: t.risk, approval: t.approval });
+  const brief = (t) => ({ id: t.id, title: t.title, type: t.type, file: t.file, risk: t.risk, approval: t.approval, worktree: t.worktree });
   console.log(JSON.stringify({
     counts: board.counts,
     inProgress: board.tasks.filter((t) => t.folder === 'doing' || t.folder === 'review').map(brief),
@@ -211,12 +223,159 @@ function run(dir, json) {
   }, null, 2));
 }
 
-module.exports = { readBoard, formatBoard, run };
+function git(dir, args) {
+  return execFileSync('git', args, { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+}
+
+// The .git folder shared by every worktree, or null when this isn't a git repo (or git isn't installed).
+function gitCommonDir(dir) {
+  try {
+    return path.resolve(dir, git(dir, ['rev-parse', '--git-common-dir']));
+  } catch (err) {
+    if (err.status === 128 || err.code === 'ENOENT') return null;
+    throw err;
+  }
+}
+
+function setField(text, key, value) {
+  const line = `${key}: ${value}`;
+  const pattern = new RegExp(`^${key}:.*$`, 'm');
+  return pattern.test(text) ? text.replace(pattern, line) : text.replace(/^status:.*$/m, (m) => `${m}\n${line}`);
+}
+
+// Lock files live in the .git folder all worktrees share (tasks/ without git).
+function lockPath(dir, name) {
+  return path.join(gitCommonDir(dir) || path.join(dir, 'tasks'), name);
+}
+
+// Creating a file with the 'wx' flag fails if it exists, so only one session can hold the lock.
+function tryLock(file, owner) {
+  try {
+    fs.writeFileSync(file, `${owner} ${new Date().toISOString()}\n`, { flag: 'wx' });
+    return true;
+  } catch (err) {
+    if (err.code !== 'EEXIST') throw err;
+    return false;
+  }
+}
+
+// Claims take turns behind a short lock, so two sessions starting at once can't take the same task.
+function claim(dir, id, preferred) {
+  const file = lockPath(dir, CLAIM_LOCK);
+  const deadline = Date.now() + 15000;
+  while (!tryLock(file, id)) {
+    if (Date.now() > deadline) {
+      throw new Error(`Another session is claiming a task (${fs.readFileSync(file, 'utf8').trim()}); delete ${file} if none is`);
+    }
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 200);
+  }
+  try {
+    claimTask(dir, id, preferred);
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
+}
+
+// Picks a session worktree no in-progress task is using (the preferred one if it's free), or creates the next session-N.
+// Worktrees with uncommitted changes are skipped — they may hold someone's unsaved work.
+function pickWorktree(dir, tasks, preferred) {
+  const inUse = new Set(tasks.filter((t) => t.folder === 'doing' || t.folder === 'review').map((t) => t.worktree));
+  const root = path.join(dir, WORKTREES_DIR);
+  const names = fs.existsSync(root) ? fs.readdirSync(root).filter((n) => /^session-\d+$/.test(n)) : [];
+  names.sort((a, b) => (a === preferred ? -1 : b === preferred ? 1 : Number(a.slice(8)) - Number(b.slice(8))));
+
+  for (const name of names) {
+    const worktree = `${WORKTREES_DIR}/${name}`;
+    if (inUse.has(worktree)) continue;
+    const dirty = git(path.join(dir, worktree), ['status', '--porcelain']);
+    if (dirty) {
+      console.log(`skipped  ${worktree} (uncommitted changes — check them, then commit or discard)`);
+      continue;
+    }
+    return { worktree, isNew: false };
+  }
+  let n = 1;
+  while (names.includes(`session-${n}`)) n++;
+  const worktree = `${WORKTREES_DIR}/session-${n}`;
+  git(dir, ['worktree', 'add', '--detach', worktree, 'HEAD']);
+  return { worktree, isNew: true };
+}
+
+// Moves a todo task to doing/ and, in a git repo, checks out its branch task/<id> in a free session worktree.
+function claimTask(dir, id, preferred) {
+  const { tasks } = readBoard(dir);
+  const task = tasks.find((t) => t.id === id);
+  if (!task) throw new Error(`No task ${id}`);
+  if (task.folder !== 'todo') throw new Error(`${id} is in tasks/${task.folder}/, not todo/ — another session may be working on it`);
+
+  const doingFile = path.join(dir, 'tasks', 'doing', path.basename(task.file));
+  fs.renameSync(path.join(dir, task.file), doingFile);
+
+  let worktree = '';
+  const notes = [];
+  if (gitCommonDir(dir)) {
+    const branch = `task/${id}`;
+    try {
+      const picked = pickWorktree(dir, tasks, preferred);
+      worktree = picked.worktree;
+      const wt = path.join(dir, worktree);
+      const before = git(wt, ['rev-parse', 'HEAD']);
+      if (git(dir, ['branch', '--list', branch])) {
+        git(wt, ['checkout', branch]);
+        notes.push(`continuing existing branch ${branch}`);
+      } else {
+        git(wt, ['checkout', '-b', branch, git(dir, ['rev-parse', 'HEAD'])]);
+        notes.push(`new branch ${branch}`);
+      }
+      if (picked.isNew) {
+        notes.push('setup: new worktree — install dependencies');
+      } else {
+        const changed = git(wt, ['diff', '--name-only', before, 'HEAD']).split('\n').filter((f) => DEPENDENCY_FILE.test(path.basename(f)));
+        notes.push(changed.length ? `setup: dependency files changed (${changed.join(', ')}) — reinstall` : 'setup: none needed');
+      }
+    } catch (err) {
+      fs.renameSync(doingFile, path.join(dir, task.file)); // undo the claim so the board stays accurate
+      throw new Error(`Could not prepare a worktree for ${id}: ${(err.stderr || err.message).trim()}`);
+    }
+  }
+
+  let text = setField(fs.readFileSync(doingFile, 'utf8'), 'status', 'doing');
+  if (worktree) text = setField(text, 'worktree', worktree);
+  const date = new Date().toISOString().slice(0, 10);
+  text = `${text.trimEnd()}\n- ${date} — claimed by /next${worktree ? ` (worktree ${worktree})` : ''}\n`;
+  fs.writeFileSync(doingFile, text);
+
+  console.log(`claimed  ${id} → tasks/doing/${path.basename(task.file)}`);
+  if (worktree) console.log(`worktree ${worktree} (${notes.join('; ')})`);
+}
+
+// Only one session merges into the main checkout at a time.
+function lock(dir, id) {
+  const file = lockPath(dir, MERGE_LOCK);
+  if (!tryLock(file, id)) {
+    throw new Error(`Merge locked by another session: ${fs.readFileSync(file, 'utf8').trim()} (delete ${file} if that session is gone)`);
+  }
+  console.log(`locked   ${id}`);
+}
+
+function unlock(dir) {
+  fs.rmSync(lockPath(dir, MERGE_LOCK), { force: true });
+  console.log('unlocked');
+}
+
+module.exports = { readBoard, formatBoard, run, claim, lock, unlock };
 
 if (require.main === module) {
   const args = process.argv.slice(2);
+  const flagAt = args.indexOf('--worktree');
+  const preferred = flagAt >= 0 ? args.splice(flagAt, 2)[1] : '';
+  const [command, arg] = args.filter((a) => !a.startsWith('-'));
   try {
-    run(path.resolve(args.find((a) => !a.startsWith('-')) || '.'), args.includes('--json'));
+    if ((command === 'claim' || command === 'lock') && !arg) throw new Error(`Usage: board.js ${command} <task id>`);
+    if (command === 'claim') claim(process.cwd(), arg, preferred);
+    else if (command === 'lock') lock(process.cwd(), arg);
+    else if (command === 'unlock') unlock(process.cwd());
+    else run(path.resolve(command || '.'), args.includes('--json'));
   } catch (err) {
     console.error(`board: ${err.message}`);
     process.exit(1);

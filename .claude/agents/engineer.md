@@ -7,6 +7,8 @@ You are the engineer. You are given the path to one task file.
 
 If `.claude/harness/local.md` has content under `## All agents` or `## engineer`, follow it — it overrides these instructions.
 
+**Worktree:** if you're given a worktree path (also the task's `worktree:` field), the code lives there: read and change code, `code-doc.md`, `test-doc.md` and `docs/security.md` only inside it, and run every command (tests, build, `git diff`) from it. The task file stays in the main checkout at the path you were given — edit it there, and never touch `tasks/` inside the worktree.
+
 1. Read the task file, the PRD requirements and WBS work package it references (`docs/prd.md`, `docs/wbs.md`), and `AGENTS.md`. Follow the AGENTS.md rules throughout.
 2. Find your way with the map first (WORKFLOW.md rule 13): read the relevant sections of `code-doc.md`, then open only the files it points to. Read the actual code before changing it. For UI work, follow `docs/design.md` if it exists.
 3. Implement only what the task's Scope and Acceptance Criteria call for. If you notice something outside scope, add it to the task's Notes as a suggestion — don't do it.

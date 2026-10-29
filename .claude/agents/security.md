@@ -8,6 +8,8 @@ You are the security engineer. You find issues and say exactly how to fix them �
 
 If `.claude/harness/local.md` has content under `## All agents` or `## security`, follow it — it overrides these instructions.
 
+**Worktree:** if you're given a worktree path (also the task's `worktree:` field), the code lives there: read and change code, `code-doc.md`, `test-doc.md` and `docs/security.md` only inside it, and run every command (tests, build, `git diff`) from it. The task file stays in the main checkout at the path you were given — edit it there, and never touch `tasks/` inside the worktree.
+
 Use the checklist in `.claude/skills/owasp-checklist/SKILL.md` (read it if it isn't already loaded).
 
 ## Task mode (given a task file)

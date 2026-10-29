@@ -10,6 +10,8 @@ You are the reviewer. You are given the path to one task file in `tasks/review/`
 
 If `.claude/harness/local.md` has content under `## All agents` or `## reviewer`, follow it — it overrides these instructions.
 
+**Worktree:** if you're given a worktree path (also the task's `worktree:` field), the change lives there: read code and docs and run every command (tests, build, `git diff`) inside it. The task file stays in the main checkout at the path you were given.
+
 1. Read the task file, the PRD requirements it references, and `AGENTS.md`.
 2. Inspect the change: `git diff` if this is a git repo, otherwise the files listed in the task's Notes. Use `code-doc.md` to find related code (WORKFLOW.md rule 13).
 3. Check:

@@ -33,16 +33,26 @@ If the project already has a PRD or WBS in its own format, convert it once with 
 11. **Checks scale with risk.** Every task has `risk: low | normal | high`. Low → reviewer only. Normal → tester + reviewer. High → tester + security + reviewer. The reviewer always does a light OWASP pass. A task reaches `done/` only when every check it needs passes. Using this workflow counts as the user's go-ahead to create and maintain `code-doc.md` and `test-doc.md`, and for the tester to write tests (this replaces "ask first" in AGENTS.md principles 4–5). Installing a test framework is still a new dependency that needs approval.
 12. **Security from the start.** The PRD covers security and privacy; the WBS has a `Security (enabler)` branch. Security findings get IDs (`SEC-001`) in `docs/security.md`; fixes that need their own work become work packages under the security branch.
 13. **Map first.** `code-doc.md` is the project map. Every agent reads the sections relevant to its task first (find them by heading — don't read the whole file when it's large), then opens only the files it points to. Search the codebase only for what the map doesn't cover — the engineer adds the missing entry, checkers report it as a gap. The map is for navigation: always read the actual code you change or verify — never judge code from its doc entry.
-14. **One commit per task.** In a git repo, `/next` commits each task when it reaches `done/`: only that task's files, with the message `<id>: <title> (<requirement IDs>)`. It never pushes. This keeps each review's `git diff` to one task and lets any task be undone with `git revert`.
+14. **One commit per task.** In a git repo, `/next` builds each task on its own branch (in the session's worktree) and, when it reaches `done/`, squash-merges it into the main checkout as one commit: only that task's files plus its board move, with the message `<id>: <title> (<requirement IDs>)`. It never pushes. This keeps each review's `git diff` to one task and lets any task be undone with `git revert`.
 15. **Bugs skip the planning round.** A bug — the software not doing what an existing requirement says — goes straight onto the board with `/bug`, as a `B-` task linked to the requirement it breaks and its work package. Bugs go before feature tasks of the same priority. A "bug" that needs a new or changed requirement is a PRD change instead.
 16. **Project customizations live in `.claude/harness/local.md`.** Before following any kit command or agent instructions, read the matching section of that file (`All agents`, your role, or `Commands`) if it has content — it overrides the kit's defaults. `init --force` never overwrites it, so customize there, not in the kit's files.
+
+## Parallel Sessions
+Several terminals can run `/next` at once (git repos):
+- **The board stays in the main checkout.** `tasks/` and `docs/wbs.md` are only ever changed there, so every session sees which tasks are in progress. A task in `doing/` or `review/` belongs to the session working on it — other sessions skip it.
+- **Claiming is atomic.** `node .claude/harness/board.js claim <id>` moves the task to `doing/`; if two sessions claim the same task, only one succeeds.
+- **Each session gets a worktree** (`.claude/worktrees/session-N`), reused task after task so dependencies are installed once. Each task gets its own branch `task/<id>` in it. All code, `code-doc.md`, `test-doc.md` and `docs/security.md` changes happen there; agents edit the task file in the main checkout.
+- **Merges take turns.** `board.js lock <id>` / `unlock` makes sure only one session squash-merges into the main checkout at a time. The task branch is deleted after the merge; the worktree stays for the next task.
+- **Unfinished tasks keep their work on their branch.** A failed or blocked task is committed as WIP to `task/<id>` and frees its worktree; whichever session claims it next continues that branch.
+- A task's dependents become ready only once it's merged (in `done/`).
+- Without git, there are no worktrees: run one `/next` at a time.
 
 ## Naming
 - Task ID: `T-<wbs code>-<letter>`, e.g. `T-1.2-a`, `T-1.2-b`. Bug ID: `B-<number>`, e.g. `B-001`.
 - Task file: `<id>-<short-slug>.md`, e.g. `tasks/todo/T-1.2-a-login-form.md`.
 
 ## Board Script
-`node .claude/harness/board.js` (add `--json` for machine-readable output) reads the board with plain code — no tokens: counts per folder, the ready tasks in `/next` order, and traceability gaps (unlinked requirements, packages without tasks, broken IDs and dependencies, status/folder mismatches). Use it instead of reading every task file. If Node isn't available, read the files directly.
+`node .claude/harness/board.js` (add `--json` for machine-readable output) reads the board with plain code — no tokens: counts per folder, the ready tasks in `/next` order, and traceability gaps (unlinked requirements, packages without tasks, broken IDs and dependencies, status/folder mismatches). Use it instead of reading every task file. If Node isn't available, read the files directly. `claim`, `lock` and `unlock` are for `/next` (see Parallel Sessions).
 
 ## In Claude Code
 The main session acts as project manager: it owns the PRD, WBS and task board, and delegates to subagents:
@@ -67,7 +77,7 @@ The main session acts as project manager: it owns the PRD, WBS and task board, a
 | `/status` | Board summary and traceability gaps (read-only) |
 
 ### Keeping usage down
-- One engineer at a time. Fix rounds continue the same engineer rather than starting a new one.
+- One engineer per session. Fix rounds continue the same engineer rather than starting a new one. Each parallel `/next` session uses your plan's limits at the same time, so two sessions use them about twice as fast.
 - Every subagent start re-reads context, so checks run only when the task's risk calls for them.
 - A current `code-doc.md` saves every agent from exploring the codebase (rule 13). If it has drifted, run `/codedoc` rather than letting each agent search.
 - `/loop 30m /next` re-checks the board on every run even when nothing is ready — use it only when there's a queue of ready tasks, otherwise run `/next` by hand.

@@ -9,6 +9,7 @@ depends_on: []       # task IDs
 approval: none       # none | required
 risk: normal         # low | normal | high — decides which checks /next runs
 estimate: S
+worktree:            # session worktree working on it, set by /next when claimed (git repos)
 ---
 
 # T-1.1-a: <title>

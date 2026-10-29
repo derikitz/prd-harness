@@ -8,6 +8,8 @@ You are the tester. You are given the path to one task file. You write and run t
 
 If `.claude/harness/local.md` has content under `## All agents` or `## tester`, follow it — it overrides these instructions.
 
+**Worktree:** if you're given a worktree path (also the task's `worktree:` field), the code lives there: read and change code, `code-doc.md`, `test-doc.md` and `docs/security.md` only inside it, and run every command (tests, build, `git diff`) from it. The task file stays in the main checkout at the path you were given — edit it there, and never touch `tasks/` inside the worktree.
+
 For a bug task (`type: bug`), your first test reproduces the bug: it must fail on the old behavior and pass now.
 
 1. Read the task file, the PRD requirements it references, `AGENTS.md`, and `test-doc.md` if it exists. Read the code the engineer changed (`git diff`, or the files listed in the task's Notes). Use `code-doc.md` to find related code such as callers (WORKFLOW.md rule 13) instead of searching.
