@@ -10,7 +10,7 @@ Follow `.claude/harness/WORKFLOW.md` (rule 15). Bug report: $ARGUMENTS
 3. **Link it.** Find the requirement it breaks (`docs/prd.md`) and its WBS work package (`docs/wbs.md`). If a done task built that code, note its ID. If no requirement fits (e.g. a crash in tooling), link it to the relevant `(enabler)` work package.
 4. **Create the task** in `tasks/todo/` from `.claude/harness/templates/task.md`:
    - ID `B-<next number>` (e.g. `B-001`) — check every `tasks/` folder for the highest existing `B-` number. File: `<id>-<short-slug>.md`.
-   - Frontmatter: `type: bug`, the `wbs` and `requirements` you found, `found_in: <task ID or blank>`, and `risk` by the usual rules (`/tasks` describes them) — a bug is at least `normal` unless it's purely cosmetic.
+   - Frontmatter: `type: bug`, the `wbs` and `requirements` you found, `found_in: <task ID or blank>`, `prd_version` (the PRD's current version), and `risk` by the usual rules (`/tasks` describes them) — a bug is at least `normal` unless it's purely cosmetic.
    - Context: steps to reproduce, expected, actual.
    - Acceptance criteria: the bug no longer reproduces, plus a regression test for it (normal/high risk).
 5. Reply with the bug ID and its place in the `/next` order (run `node .claude/harness/board.js`). Bugs go before feature tasks of the same priority.

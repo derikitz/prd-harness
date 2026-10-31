@@ -26,7 +26,7 @@ If the project already has a PRD or WBS in its own format, convert it once with 
 4. **Never renumber.** Once a WBS code or task ID exists, don't change it — other files reference it. Mark obsolete items `dropped` instead of deleting them.
 5. **Tasks are the unit of execution.** One task = one focused change an agent can finish and verify in one session. A work package has one or more tasks.
 6. **Status is the folder.** A task lives in exactly one of `tasks/todo`, `doing`, `review`, `done`, `blocked`. Move the file to change status and keep `status:` in its frontmatter matching.
-7. **Ready means unblocked.** A task is ready when it's in `tasks/todo/` and every ID in its `depends_on` is in `tasks/done/`.
+7. **Ready means unblocked.** A task is ready when it's in `tasks/todo/` and every ID in its `depends_on` is in `tasks/done/` — or it's in `tasks/blocked/` and the task in its `blocked_by` is done. A task hit by a later PRD change isn't ready until `/tasks` amends it (rule 17).
 8. **Approval gates.** A task with `approval: required` (anything risky per AGENTS.md principle 13 — migrations, deletions, public API changes — plus new dependencies or secrets) is not started until the user approves it.
 9. **Leave a trail.** Append a dated line to the task's `## Log` on every status change: what was done, or why it's blocked. Nothing moves to `done/` with unchecked acceptance criteria.
 10. **Keep the WBS in sync.** When the last task of a work package reaches `done/`, mark that work package `done` in `docs/wbs.md`.
@@ -36,6 +36,8 @@ If the project already has a PRD or WBS in its own format, convert it once with 
 14. **One commit per task.** In a git repo, `/next` builds each task on its own branch (in the session's worktree) and, when it reaches `done/`, squash-merges it into the main checkout as one commit: only that task's files plus its board move, with the message `<id>: <title> (<requirement IDs>)`. It never pushes. This keeps each review's `git diff` to one task and lets any task be undone with `git revert`.
 15. **Bugs skip the planning round.** A bug — the software not doing what an existing requirement says — goes straight onto the board with `/bug`, as a `B-` task linked to the requirement it breaks and its work package. Bugs go before feature tasks of the same priority. A "bug" that needs a new or changed requirement is a PRD change instead.
 16. **Project customizations live in `.claude/harness/local.md`.** Before following any kit command or agent instructions, read the matching section of that file (`All agents`, your role, or `Commands`) if it has content — it overrides the kit's defaults. `init --force` never overwrites it, so customize there, not in the kit's files.
+17. **PRD changes reach the tasks.** Every task records the `prd_version` it was written against. When a Changelog row names one of its requirements in a later version, `/tasks` amends a `todo/` or `blocked/` task in place (logged under `## Amendments`); a task already started or done is never reopened — the difference becomes a follow-up task in the same work package.
+18. **Unfinished work is resumable.** A parked task gets a `## Progress` section (done, left, next step, blocker) and, when blocked, `blocked_by: decision | secret | external | <task ID>`. Partly done tasks go before new ones of the same priority. When a task waits on a person, `/next` can offer to split it: the finished part is merged now, and the rest becomes a new blocked task.
 
 ## Parallel Sessions
 Several terminals can run `/next` at once (git repos):
@@ -43,7 +45,7 @@ Several terminals can run `/next` at once (git repos):
 - **Claiming is atomic.** `node .claude/harness/board.js claim <id>` moves the task to `doing/`; if two sessions claim the same task, only one succeeds.
 - **Each session gets a worktree** (`.claude/worktrees/session-N`), reused task after task so dependencies are installed once. Each task gets its own branch `task/<id>` in it. All code, `code-doc.md`, `test-doc.md` and `docs/security.md` changes happen there; agents edit the task file in the main checkout.
 - **Merges take turns.** `board.js lock <id>` / `unlock` makes sure only one session squash-merges into the main checkout at a time. The task branch is deleted after the merge; the worktree stays for the next task.
-- **Unfinished tasks keep their work on their branch.** A failed or blocked task is committed as WIP to `task/<id>` and frees its worktree; whichever session claims it next continues that branch.
+- **Unfinished tasks keep their work on their branch.** A failed or blocked task is committed as WIP to `task/<id>` and frees its worktree; whichever session claims it next continues that branch, after merging in the latest main.
 - A task's dependents become ready only once it's merged (in `done/`).
 - Without git, there are no worktrees: run one `/next` at a time.
 
@@ -52,7 +54,7 @@ Several terminals can run `/next` at once (git repos):
 - Task file: `<id>-<short-slug>.md`, e.g. `tasks/todo/T-1.2-a-login-form.md`.
 
 ## Board Script
-`node .claude/harness/board.js` (add `--json` for machine-readable output) reads the board with plain code — no tokens: counts per folder, the ready tasks in `/next` order, and traceability gaps (unlinked requirements, packages without tasks, broken IDs and dependencies, status/folder mismatches). Use it instead of reading every task file. If Node isn't available, read the files directly. `claim`, `lock` and `unlock` are for `/next` (see Parallel Sessions).
+`node .claude/harness/board.js` (add `--json` for machine-readable output) reads the board with plain code — no tokens: counts per folder, the ready tasks in `/next` order, and traceability gaps (unlinked requirements, packages without tasks, broken IDs and dependencies, status/folder mismatches, tasks behind a PRD change). Use it instead of reading every task file. If Node isn't available, read the files directly. `claim`, `lock` and `unlock` are for `/next` (see Parallel Sessions).
 
 ## In Claude Code
 The main session acts as project manager: it owns the PRD, WBS and task board, and delegates to subagents:

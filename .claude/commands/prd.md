@@ -18,8 +18,8 @@ Request: $ARGUMENTS
 
 **If it exists:**
 1. Apply the requested change. If no change was given, review the PRD for gaps — vague requirements, missing acceptance criteria, unresolved open questions — and propose fixes.
-2. Changing an `approved` requirement needs the user's confirmation. Bump the version and add a Changelog row.
-3. Search `docs/wbs.md` and `tasks/` for the affected requirement IDs, list what's impacted, and suggest running `/wbs`.
+2. Changing an `approved` requirement needs the user's confirmation. Bump the version and add a Changelog row whose Affected IDs list every changed requirement ID — the board script uses that column to find tasks written against the old version.
+3. Search `docs/wbs.md` and `tasks/` for the affected requirement IDs, list what's impacted (by task folder: todo/blocked tasks get amended, started or done ones get a follow-up task), and suggest `/wbs` then `/tasks`.
 
 ## Importing an existing PRD
 The goal is a one-time conversion: afterwards `docs/prd.md` is the only source of truth and no agent reads the original again.

@@ -64,7 +64,7 @@ flowchart LR
 | Break requirements into deliverables | `/wbs` | `docs/wbs.md` |
 | Break deliverables into tasks | `/tasks` | `tasks/todo/*.md` |
 
-You approve the PRD before anything is built. When requirements change, run `/prd <change>` → `/wbs` → `/tasks` and the change flows down.
+You approve the PRD before anything is built. When requirements change, run `/prd <change>` → `/wbs` → `/tasks` and the change flows down. Each task records the PRD version it was written for, so the board flags tasks a change has left behind. `/tasks` updates the ones not started yet and adds follow-up tasks for ones already started or done, so finished work is never reopened.
 
 ### 2. Build
 `/next` picks the next ready task, has the **engineer** build it, then runs only the checks that task needs:
@@ -76,6 +76,8 @@ You approve the PRD before anything is built. When requirements change, run `/pr
 | `high` | Auth, payments, personal data, uploads, migrations | tester → security → reviewer |
 
 If a check fails, the same engineer fixes it, and the check runs again. Task files move through `tasks/todo → doing → review → done` (or `blocked`), so the folder *is* the board.
+
+**Blocked halfway?** The work is saved on the task's branch, and the task notes what's done, what's left and what it's waiting for. A task waiting on another task becomes ready again by itself once that task is done; for one waiting on you (a decision, a secret), run `/next <id>` once you've sorted it. Partly done tasks go ahead of new ones. If a task will wait a long time, `/next` can offer to merge the finished part now and move the rest into a new task.
 
 In a git repo, every finished task becomes **one commit** — `T-1.2-a: Login form (FR-003)` — so each task can be reviewed or reverted on its own, and your history traces back to requirements. Nothing is ever pushed for you.
 

@@ -11,6 +11,8 @@ const STATUSES = ['todo', 'doing', 'review', 'done', 'blocked'];
 const PRIORITY_RANK = { must: 0, should: 1, could: 2 };
 const REQ_ID = /^N?FR-\d+$/;
 const WBS_CODE = /^\d+(\.\d+)*$/;
+const TASK_ID = /^[TB]-[\w.-]+$/;
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const WORKTREES_DIR = '.claude/worktrees';
 const MERGE_LOCK = 'prd-harness-merge.lock';
 const CLAIM_LOCK = 'prd-harness-claim.lock';
@@ -55,6 +57,7 @@ function lastLogLine(text) {
   return lines.length ? lines[lines.length - 1].trim().slice(2) : '';
 }
 
+// Compares dotted numbers: WBS codes and PRD versions.
 function compareWbs(a, b) {
   const pa = String(a || '').split('.').map(Number);
   const pb = String(b || '').split('.').map(Number);
@@ -123,6 +126,9 @@ function readBoard(dir) {
         risk: fm.risk || 'normal',
         status: fm.status || '',
         worktree: fm.worktree || '',
+        prdVersion: fm.prd_version || '',
+        blockedBy: fm.blocked_by || '',
+        partial: /^## Progress\s*$/m.test(text), // parked unfinished, with its work on its branch
         folder: status,
         file,
         lastLog: lastLogLine(text),
@@ -152,6 +158,28 @@ function readBoard(dir) {
     if ((task.folder === 'doing' || task.folder === 'review') && task.worktree && !fs.existsSync(path.join(dir, task.worktree))) {
       gaps.push(`${task.id}: in progress, but its worktree ${task.worktree} is missing`);
     }
+    if (task.folder === 'blocked' && TASK_ID.test(task.blockedBy) && !byId.has(task.blockedBy)) {
+      gaps.push(`${task.id}: blocked by unknown task ${task.blockedBy}`);
+    }
+  }
+
+  // PRD changes a task hasn't caught up with: the newest Changelog row after its prd_version that names one of its requirements.
+  // todo/blocked tasks get amended in place; a task already started or done is covered by a follow-up task written for that version.
+  const prdChanges = prdText
+    ? tableRows(prdText, DATE).map((cells) => ({ version: cells[1], ids: (cells[3] || '').split(/[,\s]+/) }))
+    : [];
+  for (const task of tasks) {
+    if (!task.prdVersion) continue;
+    const amendable = task.folder === 'todo' || task.folder === 'blocked';
+    for (const req of task.requirements) {
+      const newest = prdChanges
+        .filter((c) => c.ids.includes(req) && compareWbs(c.version, task.prdVersion) > 0)
+        .sort((a, b) => compareWbs(b.version, a.version))[0];
+      if (!newest) continue;
+      if (!amendable && tasks.some((t) => t !== task && t.requirements.includes(req) && compareWbs(t.prdVersion, newest.version) >= 0)) continue;
+      task.stale = true;
+      gaps.push(`${task.id}: ${req} changed in PRD ${newest.version} (task written for ${task.prdVersion}) — run /tasks to ${amendable ? 'amend it' : 'add a follow-up task'}`);
+    }
   }
 
   // Dependency cycles
@@ -178,13 +206,16 @@ function readBoard(dir) {
     if (pkg.status !== 'done' && !tasks.some((t) => t.wbs === code)) gaps.push(`WBS ${code} (${pkg.name}): no tasks yet`);
   }
 
-  // Ready tasks, in the order /next picks them: PRD priority, bugs before features, then WBS order
+  // Ready tasks, in the order /next picks them: PRD priority, bugs before features, unfinished work before new, then WBS order.
+  // A blocked task is ready again once the task it's blocked by is done; a stale task waits for /tasks to amend it.
   const rank = (task) => Math.min(3, ...task.requirements.map((r) => PRIORITY_RANK[requirements.get(r)?.priority] ?? 3));
   const ready = tasks
-    .filter((t) => t.folder === 'todo' && t.dependsOn.every((dep) => doneIds.has(dep)))
+    .filter((t) => !t.stale && (t.folder === 'todo' || (t.folder === 'blocked' && doneIds.has(t.blockedBy))))
+    .filter((t) => t.dependsOn.every((dep) => doneIds.has(dep)))
     .sort((a, b) =>
       rank(a) - rank(b) ||
       (a.type === 'bug' ? 0 : 1) - (b.type === 'bug' ? 0 : 1) ||
+      (a.partial ? 0 : 1) - (b.partial ? 0 : 1) ||
       compareWbs(a.wbs, b.wbs) ||
       a.id.localeCompare(b.id));
 
@@ -193,14 +224,16 @@ function readBoard(dir) {
 }
 
 function formatBoard({ counts, tasks, ready, gaps }) {
-  const line = (t) => `  ${t.id.padEnd(10)} ${t.title}${t.type === 'bug' ? '  [bug]' : ''}${t.approval === 'required' ? '  [needs approval]' : ''}`;
+  const line = (t) => `  ${t.id.padEnd(10)} ${t.title}${t.type === 'bug' ? '  [bug]' : ''}${t.partial ? '  [partly done]' : ''}${t.approval === 'required' ? '  [needs approval]' : ''}`;
+  const readyIds = new Set(ready.map((t) => t.id));
+  const waiting = (t) => (!t.blockedBy ? '' : readyIds.has(t.id) ? `  (resumable — ${t.blockedBy} is done)` : `  (waiting on ${t.blockedBy})`);
   const out = [`Board   ${Object.entries(counts).map(([s, n]) => `${s} ${n}`).join(' · ')}`];
 
   for (const status of ['doing', 'review', 'blocked']) {
     const list = tasks.filter((t) => t.folder === status);
     if (!list.length) continue;
     out.push('', `${status[0].toUpperCase()}${status.slice(1)}:`);
-    for (const t of list) out.push(line(t) + (status !== 'blocked' && t.worktree ? `  (${t.worktree})` : '') + (status === 'blocked' && t.lastLog ? `\n             ↳ ${t.lastLog}` : ''));
+    for (const t of list) out.push(line(t) + (status !== 'blocked' && t.worktree ? `  (${t.worktree})` : '') + (status === 'blocked' ? waiting(t) + (t.lastLog ? `\n             ↳ ${t.lastLog}` : '') : ''));
   }
 
   out.push('', ready.length ? 'Ready (in /next order):' : 'Ready: none');
@@ -214,7 +247,7 @@ function formatBoard({ counts, tasks, ready, gaps }) {
 function run(dir, json) {
   const board = readBoard(dir);
   if (!json) return console.log(formatBoard(board));
-  const brief = (t) => ({ id: t.id, title: t.title, type: t.type, file: t.file, risk: t.risk, approval: t.approval, worktree: t.worktree });
+  const brief = (t) => ({ id: t.id, title: t.title, type: t.type, file: t.file, folder: t.folder, risk: t.risk, approval: t.approval, partial: t.partial, worktree: t.worktree });
   console.log(JSON.stringify({
     counts: board.counts,
     inProgress: board.tasks.filter((t) => t.folder === 'doing' || t.folder === 'review').map(brief),
@@ -301,12 +334,14 @@ function pickWorktree(dir, tasks, preferred) {
   return { worktree, isNew: true };
 }
 
-// Moves a todo task to doing/ and, in a git repo, checks out its branch task/<id> in a free session worktree.
+// Moves a todo or blocked task to doing/ and, in a git repo, checks out its branch task/<id> in a free session worktree.
 function claimTask(dir, id, preferred) {
   const { tasks } = readBoard(dir);
   const task = tasks.find((t) => t.id === id);
   if (!task) throw new Error(`No task ${id}`);
-  if (task.folder !== 'todo') throw new Error(`${id} is in tasks/${task.folder}/, not todo/ — another session may be working on it`);
+  if (task.folder !== 'todo' && task.folder !== 'blocked') {
+    throw new Error(`${id} is in tasks/${task.folder}/, not todo/ or blocked/ — another session may be working on it`);
+  }
 
   const doingFile = path.join(dir, 'tasks', 'doing', path.basename(task.file));
   fs.renameSync(path.join(dir, task.file), doingFile);
@@ -322,7 +357,8 @@ function claimTask(dir, id, preferred) {
       const before = git(wt, ['rev-parse', 'HEAD']);
       if (git(dir, ['branch', '--list', branch])) {
         git(wt, ['checkout', branch]);
-        notes.push(`continuing existing branch ${branch}`);
+        const behind = Number(git(dir, ['rev-list', '--count', `${branch}..HEAD`]));
+        notes.push(`continuing existing branch ${branch}${behind ? ` (main is ${behind} commits ahead — merge it in)` : ''}`);
       } else {
         git(wt, ['checkout', '-b', branch, git(dir, ['rev-parse', 'HEAD'])]);
         notes.push(`new branch ${branch}`);
@@ -339,7 +375,7 @@ function claimTask(dir, id, preferred) {
     }
   }
 
-  let text = setField(fs.readFileSync(doingFile, 'utf8'), 'status', 'doing');
+  let text = setField(fs.readFileSync(doingFile, 'utf8'), 'status', 'doing').replace(/^blocked_by:.*$/m, 'blocked_by:');
   if (worktree) text = setField(text, 'worktree', worktree);
   const date = new Date().toISOString().slice(0, 10);
   text = `${text.trimEnd()}\n- ${date} — claimed by /next${worktree ? ` (worktree ${worktree})` : ''}\n`;
