@@ -27,7 +27,10 @@ Why this task exists and what the engineer needs to know: relevant PRD section, 
 - [ ]
 
 ## Notes
-Decisions made, files touched, gotchas.
+Decisions made, gotchas.
+
+**Changed files** (engineer): one line each — `path` — what changed.
+**Verify with** (engineer): the exact test/build/lint commands run.
 
 <!-- Added only when needed:
 ## Progress — written by /next when the task is parked unfinished: criteria done, criteria left, files touched, next step, blocker.

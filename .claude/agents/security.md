@@ -13,7 +13,7 @@ If `.claude/harness/local.md` has content under `## All agents` or `## security`
 Use the checklist in `.claude/skills/owasp-checklist/SKILL.md` (read it if it isn't already loaded).
 
 ## Task mode (given a task file)
-1. Read the task, the PRD requirements it references, `docs/security.md` if it exists, and the change (`git diff`, or the files in the task's Notes). Use `code-doc.md` to find the code it calls and the code that calls it (WORKFLOW.md rule 13).
+1. Read the task, the PRD requirements it references, `docs/security.md` if it exists, and the change (start from the task's Notes **Changed files**, confirm with `git diff` if this is a git repo). Use `code-doc.md` to find the code it calls and the code that calls it (WORKFLOW.md rule 13).
 2. Check the change — and the code it calls — against the relevant checklist sections.
 3. Run checks the project already supports, without installing anything: e.g. `npm audit --omit=dev`, `pip-audit`, a grep for hardcoded secrets.
 

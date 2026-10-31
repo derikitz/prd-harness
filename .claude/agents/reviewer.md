@@ -13,7 +13,7 @@ If `.claude/harness/local.md` has content under `## All agents` or `## reviewer`
 **Worktree:** if you're given a worktree path (also the task's `worktree:` field), the change lives there: read code and docs and run every command (tests, build, `git diff`) inside it. The task file stays in the main checkout at the path you were given.
 
 1. Read the task file, the PRD requirements it references, and `AGENTS.md`.
-2. Inspect the change: `git diff` if this is a git repo, otherwise the files listed in the task's Notes. Use `code-doc.md` to find related code (WORKFLOW.md rule 13).
+2. Inspect the change: start from the task's Notes **Changed files** and **Verify with**; confirm with `git diff` if this is a git repo — a changed file missing from the list is a finding. Use `code-doc.md` to find related code (WORKFLOW.md rule 13).
 3. Check:
    - Each acceptance criterion is actually met — run tests/build where possible, don't just trust the ticks.
    - If the tester ran: its tests cover the acceptance criteria and pass (the task's `## Tests` section).
