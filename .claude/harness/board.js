@@ -57,6 +57,16 @@ function lastLogLine(text) {
   return lines.length ? lines[lines.length - 1].trim().slice(2) : '';
 }
 
+// The engineer's Notes lines that the checkers start from (task template). A label that is missing, or still followed by the template's placeholder text, counts as not filled in.
+const NOTES_LINES = [
+  { label: /\*\*Changed files[^*]*\*\*/, placeholder: 'one line each — `path`', name: 'Changed files' },
+  { label: /\*\*Verify with[^*]*\*\*/, placeholder: 'the exact test/build/lint commands run', name: 'Verify with' },
+];
+
+function missingNotes(text) {
+  return NOTES_LINES.filter((n) => !n.label.test(text) || text.includes(n.placeholder)).map((n) => n.name);
+}
+
 // Compares dotted numbers: WBS codes and PRD versions.
 function compareWbs(a, b) {
   const pa = String(a || '').split('.').map(Number);
@@ -128,6 +138,7 @@ function readBoard(dir) {
         worktree: fm.worktree || '',
         prdVersion: fm.prd_version || '',
         blockedBy: fm.blocked_by || '',
+        missingNotes: missingNotes(text),
         partial: /^## Progress\s*$/m.test(text), // parked unfinished, with its work on its branch
         folder: status,
         file,
@@ -154,6 +165,9 @@ function readBoard(dir) {
     }
     for (const dep of task.dependsOn) {
       if (!byId.has(dep)) gaps.push(`${task.id}: depends on unknown task ${dep}`);
+    }
+    if (task.folder === 'review' && task.missingNotes.length) {
+      gaps.push(`${task.id}: in review, but Notes lack ${task.missingNotes.join(' and ')} — send it back to the engineer before running the checks`);
     }
     if ((task.folder === 'doing' || task.folder === 'review') && task.worktree && !fs.existsSync(path.join(dir, task.worktree))) {
       gaps.push(`${task.id}: in progress, but its worktree ${task.worktree} is missing`);
