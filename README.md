@@ -142,6 +142,7 @@ your-project/
 │       ├── WORKFLOW.md       The rules of the PRD → WBS → tasks workflow
 │       ├── board.js          Board script: status, ready tasks, gaps (no tokens)
 │       ├── local.md          Your customizations — never overwritten
+│       ├── parallel.md       Parallel sessions, board script and usage tips (read by /next)
 │       ├── compliance/       ASVS 5.0.0 requirements (official CSV, CC BY-SA 4.0) and SOC 2 readiness map
 │       └── templates/        prd, design, wbs, task, code-doc, test-doc, security, compliance
 ├── docs/                     prd.md, wbs.md, design.md, security.md, compliance.md (created as you go)

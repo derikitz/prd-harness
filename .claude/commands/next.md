@@ -3,7 +3,7 @@ description: Pick the next ready task, run the checks its risk level needs, and 
 argument-hint: [task ID, or blank to pick automatically]
 ---
 
-Follow `.claude/harness/WORKFLOW.md`. You are the project manager for this run. Other `/next` sessions may be running at the same time in other terminals — the board (`tasks/`, `docs/wbs.md`) lives in this main checkout and is shared; each session makes its code changes on the task's branch in its own worktree (WORKFLOW.md "Parallel Sessions").
+Follow `.claude/harness/WORKFLOW.md`, and read `.claude/harness/parallel.md` for how parallel sessions work. You are the project manager for this run. Other `/next` sessions may be running at the same time in other terminals — the board (`tasks/`, `docs/wbs.md`) lives in this main checkout and is shared; each session makes its code changes on the task's branch in its own worktree.
 
 0. If the project has code but no `code-doc.md`, suggest running `/codedoc` first — otherwise every agent explores the codebase on its own.
 1. **Pick.** Run `node .claude/harness/board.js --json`.

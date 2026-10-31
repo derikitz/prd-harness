@@ -40,21 +40,14 @@ If the project already has a PRD or WBS in its own format, convert it once with 
 18. **Unfinished work is resumable.** A parked task gets a `## Progress` section (done, left, next step, blocker) and, when blocked, `blocked_by: decision | secret | external | <task ID>`. Partly done tasks go before new ones of the same priority. When a task waits on a person, `/next` can offer to split it: the finished part is merged now, and the rest becomes a new blocked task.
 
 ## Parallel Sessions
-Several terminals can run `/next` at once (git repos):
-- **The board stays in the main checkout.** `tasks/` and `docs/wbs.md` are only ever changed there, so every session sees which tasks are in progress. A task in `doing/` or `review/` belongs to the session working on it — other sessions skip it.
-- **Claiming is atomic.** `node .claude/harness/board.js claim <id>` moves the task to `doing/`; if two sessions claim the same task, only one succeeds.
-- **Each session gets a worktree** (`.claude/worktrees/session-N`), reused task after task so dependencies are installed once. Each task gets its own branch `task/<id>` in it. All code, `code-doc.md`, `test-doc.md` and `docs/security.md` changes happen there; agents edit the task file in the main checkout.
-- **Merges take turns.** `board.js lock <id>` / `unlock` makes sure only one session squash-merges into the main checkout at a time. The task branch is deleted after the merge; the worktree stays for the next task.
-- **Unfinished tasks keep their work on their branch.** A failed or blocked task is committed as WIP to `task/<id>` and frees its worktree; whichever session claims it next continues that branch, after merging in the latest main.
-- A task's dependents become ready only once it's merged (in `done/`).
-- Without git, there are no worktrees: run one `/next` at a time.
+Several terminals can run `/next` at once (git repos). The board stays in the main checkout; each session builds in its own worktree. `/next` reads `.claude/harness/parallel.md` for the details.
 
 ## Naming
 - Task ID: `T-<wbs code>-<letter>`, e.g. `T-1.2-a`, `T-1.2-b`. Bug ID: `B-<number>`, e.g. `B-001`.
 - Task file: `<id>-<short-slug>.md`, e.g. `tasks/todo/T-1.2-a-login-form.md`.
 
 ## Board Script
-`node .claude/harness/board.js` (add `--json` for machine-readable output) reads the board with plain code — no tokens: counts per folder, the ready tasks in `/next` order, and traceability gaps (unlinked requirements, packages without tasks, broken IDs and dependencies, status/folder mismatches, tasks behind a PRD change). Use it instead of reading every task file. If Node isn't available, read the files directly. `claim`, `lock` and `unlock` are for `/next` (see Parallel Sessions).
+For the board state (counts, ready tasks, gaps) run `node .claude/harness/board.js` (add `--json` for machine-readable output) instead of reading task files. Details in `.claude/harness/parallel.md`.
 
 ## In Claude Code
 The main session acts as project manager: it owns the PRD, WBS and task board, and delegates to subagents:
@@ -80,10 +73,4 @@ The main session acts as project manager: it owns the PRD, WBS and task board, a
 | `/check-soc2 [full]` | On demand, not part of `/next`: SOC 2 readiness (not certification), results in `docs/compliance.md` |
 | `/status` | Board summary and traceability gaps (read-only) |
 
-### Keeping usage down
-- One engineer per session. Fix rounds continue the same engineer rather than starting a new one. Each parallel `/next` session uses your plan's limits at the same time, so two sessions use them about twice as fast.
-- Every subagent start re-reads context, so checks run only when the task's risk calls for them.
-- A current `code-doc.md` saves every agent from exploring the codebase (rule 13). If it has drifted, run `/codedoc` rather than letting each agent search.
-- `/loop 30m /next` re-checks the board on every run even when nothing is ready — use it only when there's a queue of ready tasks, otherwise run `/next` by hand.
-- Use the board script (above) for anything about the board's state, instead of reading task files.
-- To change a subagent's model, override it in `.claude/harness/local.md`, or edit `model:` in its file in `.claude/agents/` (an edit there is lost on `init --force`).
+Tips for keeping usage down are in `.claude/harness/parallel.md`.
