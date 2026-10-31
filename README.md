@@ -31,7 +31,16 @@ npx prd-harness init
 claude
 ```
 
-Using pnpm? Swap `npx` for `pnpm dlx` in any command here, e.g. `pnpm dlx prd-harness init`. Don't use `pnpm add prd-harness`: that only adds it as a dependency and doesn't install the harness into your project.
+Use your project's package manager's one-off runner in place of `npx` in any command here:
+
+| Package manager | Command |
+|---|---|
+| npm | `npx prd-harness init` |
+| pnpm | `pnpm dlx prd-harness init` |
+| Yarn 2+ | `yarn dlx prd-harness init` |
+| Bun | `bunx prd-harness init` |
+
+If `npx` fails with `EBADDEVENGINES`, your project's `package.json` pins another package manager (`devEngines.packageManager`) and npm refuses to run in it. Use that package manager's runner from the table. Don't use `pnpm add prd-harness` or similar: that only adds it as a dependency and doesn't install the harness into your project.
 
 Then, inside Claude Code:
 
