@@ -5,7 +5,7 @@ argument-hint: [WBS code, or blank for every package without tasks]
 
 Follow `.claude/harness/WORKFLOW.md`. Read `docs/wbs.md` and `docs/prd.md`; if the WBS doesn't exist, stop and suggest `/wbs`.
 
-Scope: $ARGUMENTS — if blank, every work package with status `todo` or `in-progress` that has no task files yet (check all `tasks/*/` folders), plus every task the board reports as changed in the PRD (run `node .claude/harness/board.js` — gaps saying `changed in PRD`). For an `in-progress` package (from an imported WBS), check `code-doc.md` for what's already built and create tasks only for what's left.
+Scope: $ARGUMENTS — if blank, every work package with status `todo` or `in-progress` that has no task files yet, plus every task the board reports as changed in the PRD. Run `node .claude/harness/board.js` once: its gaps say `no tasks yet` for the packages and `changed in PRD` for the tasks (if Node isn't available, check all `tasks/*/` folders). For an `in-progress` package (from an imported WBS), check `code-doc.md` for what's already built and create tasks only for what's left.
 
 ## Tasks hit by a PRD change
 Read the PRD Changelog rows newer than the task's `prd_version`, and the changed requirements. Then, by the task's folder:
