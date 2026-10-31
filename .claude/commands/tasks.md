@@ -24,9 +24,10 @@ For each work package in scope:
    - `depends_on`: include tasks from packages this package depends on.
    - `approval: required` for anything risky (see WORKFLOW.md rule 8).
    - `risk` (decides which checks run — see WORKFLOW.md rule 11):
-     - `low`: no logic change — copy, styling, docs, config values.
-     - `high`: touches authentication, authorization, payments, personal data, file uploads, external input parsing, database migrations, or secrets.
+     - `low`: no logic change — copy, styling, docs, config values; enabler setup with no runtime logic (repo scaffolding, linter/formatter/CI config, tooling).
+     - `high`: touches authentication, authorization, payments, personal data, file uploads, external input parsing, database migrations, or secrets (including CI or deploy config that handles secrets).
      - `normal`: everything else.
+     - If a task fits both `low` and `high`, it's `high`; if you're unsure between `low` and `normal`, pick `normal`.
    - UI tasks: reference the relevant `docs/design.md` sections in Context, if the file exists.
 3. Don't create duplicates — skip IDs that already exist in any `tasks/` folder.
 
