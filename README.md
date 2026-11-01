@@ -52,6 +52,17 @@ Already have a PRD or WBS? Convert it once with `/prd import <file>`, then `/wbs
 
 `init` never overwrites your files. If the project already has an `AGENTS.md` or `CLAUDE.md`, it only appends the lines that connect the workflow.
 
+### Using another coding agent
+
+The kit is built for Claude Code, which runs the slash commands and subagents for you. The rest is plain files, so another agent can follow the same workflow by hand:
+
+1. Run `init` in the project (it needs only Node, not Claude Code). Make sure the agent reads `AGENTS.md`, which points it to `.claude/harness/WORKFLOW.md`. Check how your tool loads project instructions: the `@` imports in `CLAUDE.md` are Claude Code only.
+2. For each step, give the agent the text of the matching file in `.claude/commands/` (for example `next.md` for `/next`), and fill in `$ARGUMENTS` yourself.
+3. Where a command says to delegate to a subagent, start a **fresh session** and give it the matching file in `.claude/agents/` (engineer, tester, security or reviewer) plus the task file path. Use a new session for each role, so whoever checks the work didn't write it.
+4. The board script works from any shell: `node .claude/harness/board.js` (add `--json`), including `claim`, `lock` and `unlock`.
+
+What you lose compared with Claude Code: the agents don't run on their own, models aren't picked per role, and you run the steps yourself. The rules, templates and task files work the same. This path is untested outside Claude Code.
+
 ## How it works
 
 ```mermaid
