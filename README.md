@@ -52,16 +52,27 @@ Already have a PRD or WBS? Convert it once with `/prd import <file>`, then `/wbs
 
 `init` never overwrites your files. If the project already has an `AGENTS.md` or `CLAUDE.md`, it only appends the lines that connect the workflow.
 
-### Using another coding agent
+### Using Cursor or Codex CLI
 
-The kit is built for Claude Code, which runs the slash commands and subagents for you. The rest is plain files, so another agent can follow the same workflow by hand:
+Add `--agent` to `init` to also write files for other coding agents (comma-separated):
 
-1. Run `init` in the project (it needs only Node, not Claude Code). Make sure the agent reads `AGENTS.md`, which points it to `.claude/harness/WORKFLOW.md`. Check how your tool loads project instructions: the `@` imports in `CLAUDE.md` are Claude Code only.
-2. For each step, give the agent the text of the matching file in `.claude/commands/` (for example `next.md` for `/next`), and fill in `$ARGUMENTS` yourself.
-3. Where a command says to delegate to a subagent, start a **fresh session** and give it the matching file in `.claude/agents/` (engineer, tester, security or reviewer) plus the task file path. Use a new session for each role, so whoever checks the work didn't write it.
-4. The board script works from any shell: `node .claude/harness/board.js` (add `--json`), including `claim`, `lock` and `unlock`.
+```bash
+npx prd-harness init --agent=cursor,codex
+```
 
-What you lose compared with Claude Code: the agents don't run on their own, models aren't picked per role, and you run the steps yourself. The rules, templates and task files work the same. This path is untested outside Claude Code.
+| Tool | What gets written | How you use it |
+|---|---|---|
+| Both | The commands as skills in `.agents/skills/` | Cursor: type `/prd`, `/next` and so on. Codex: type `$prd`, `$next`, or use `/skills`. Type any arguments after it in the same message. |
+| Cursor | The four subagents in `.cursor/agents/` | The skills delegate to them by name. |
+| Codex | The four subagents in `.codex/agents/*.toml` | Same. Codex only starts subagents when the prompt asks for one, and the skills do. |
+
+These files are generated from the `.claude/` ones, so re-run `init --agent=… --force` after updating the kit. Differences from Claude Code:
+- **Models:** the subagents use the tool's default model. The kit's per-role model choices (sonnet, haiku) are Claude-only.
+- **Read-only reviewer:** Claude Code enforces it with a tool list; the other tools rely on the reviewer's instructions.
+- **Fix rounds:** `/next` continues the same engineer. Cursor can resume a subagent by ID. I couldn't confirm that Codex can, so there the engineer may be restarted with the findings and the task file, which costs more tokens.
+- **Untested:** these were checked against each tool's docs, not run in the tools.
+
+Other agents (Gemini CLI, Copilot, …) can follow the workflow by hand: point the agent at `AGENTS.md`, give it the matching file from `.claude/commands/` for each step, and run each role in a fresh session from `.claude/agents/`. `node .claude/harness/board.js` works from any shell.
 
 ## How it works
 
@@ -195,11 +206,12 @@ This overwrites only the kit's own files in `.claude/agents`, `commands`, `harne
 ## CLI reference
 
 ```
-prd-harness init [dir] [--force]     Install the harness into a project
-prd-harness status [dir] [--json]    Show the board, ready tasks and traceability gaps
+prd-harness init [dir] [--force] [--agent=<tools>]   Install the harness into a project
+prd-harness status [dir] [--json]                    Show the board, ready tasks and traceability gaps
 
   dir         Project folder (default: current folder)
   --force     init: overwrite the kit's files with this version
+  --agent=    init: also write files for cursor and/or codex (comma-separated)
   --json      status: machine-readable output
   --help      Show help
   --version   Show version

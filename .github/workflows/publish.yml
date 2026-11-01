@@ -48,6 +48,22 @@ jobs:
           # The board script runs on an empty board
           node bin/cli.js status "$project"
 
+      - name: Smoke test the Cursor and Codex adapters
+        run: |
+          project="$(mktemp -d)"
+          node bin/cli.js init "$project" --agent=cursor,codex
+          # Fails if a Claude-only phrase in .claude/commands no longer matches the adapter rewrites
+          for f in .agents/skills/next/SKILL.md .agents/skills/status/SKILL.md .cursor/agents/engineer.md .codex/agents/engineer.toml .codex/agents/reviewer.toml; do
+            test -f "$project/$f" || { echo "::error::Missing $f after init --agent"; exit 1; }
+          done
+          grep -q "^developer_instructions = " "$project/.codex/agents/engineer.toml" || { echo "::error::Codex agent has no developer_instructions"; exit 1; }
+          if grep -rqE 'SendMessage|model: haiku|\$ARGUMENTS' "$project/.agents/skills"; then
+            echo "::error::Claude-only wording left in generated skills"; exit 1
+          fi
+          if node bin/cli.js init "$project" --agent=nope 2> /dev/null; then
+            echo "::error::init accepted an unknown --agent value"; exit 1
+          fi
+
       - name: Show package contents
         run: npm pack --dry-run
 

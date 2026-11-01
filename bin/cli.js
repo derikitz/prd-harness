@@ -2,6 +2,7 @@
 // Installs the PRD -> WBS -> tasks harness into a project. No dependencies.
 const fs = require('fs');
 const path = require('path');
+const { SUPPORTED, parseAgents, adapterFiles } = require('./adapters');
 
 const SOURCE = path.resolve(__dirname, '..');
 const HARNESS_DIRS = ['.claude/agents', '.claude/commands', '.claude/harness', '.claude/skills'];
@@ -15,11 +16,12 @@ const HARNESS_DOCS = ['docs/prd.md', 'docs/wbs.md'];
 const WORKTREES_IGNORE = '.claude/worktrees/';
 
 const HELP = `Usage:
-  prd-harness init [dir] [--force]     Install the harness into a project (default: current folder)
-  prd-harness status [dir] [--json]    Show the task board, ready tasks and traceability gaps
+  prd-harness init [dir] [--force] [--agent=<tools>]   Install the harness into a project (default: current folder)
+  prd-harness status [dir] [--json]                    Show the task board, ready tasks and traceability gaps
 
 Options:
   --force     init: overwrite the kit's files (.claude/agents, commands, harness, skills) with this version
+  --agent=    init: also write files for other coding agents, comma-separated: ${SUPPORTED.join(', ')}
   --json      status: machine-readable output
   --help      Show this help
   --version   Show version
@@ -45,7 +47,7 @@ function workflowSection() {
   return match[0].trim();
 }
 
-function init(target, force) {
+function init(target, force, agents) {
   if (!fs.existsSync(target)) throw new Error(`Target folder does not exist: ${target}`);
   if (path.resolve(target) === SOURCE) throw new Error('Target is the harness package itself. Pass a project folder.');
 
@@ -61,6 +63,20 @@ function init(target, force) {
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.copyFileSync(file, dest);
       log('copied', rel);
+    }
+  }
+
+  // Files for other coding agents, generated from the Claude Code ones
+  if (agents.length) {
+    for (const { rel, content } of adapterFiles(agents)) {
+      const dest = path.join(target, rel);
+      if (fs.existsSync(dest) && !force) {
+        log('skip', `${rel} (exists; use --force to overwrite)`);
+        continue;
+      }
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.writeFileSync(dest, content);
+      log('created', rel);
     }
   }
 
@@ -137,7 +153,9 @@ function main(argv) {
 
   if (flags.includes('--version')) return console.log(require('../package.json').version);
   if (flags.includes('--help') || !command) return console.log(HELP);
-  if (command === 'init') return init(path.resolve(dir), flags.includes('--force'));
+  const agentFlag = flags.find((f) => f === '--agent' || f.startsWith('--agent='));
+  if (agentFlag === '--agent') throw new Error('Use --agent=<tools>, e.g. --agent=cursor,codex.');
+  if (command === 'init') return init(path.resolve(dir), flags.includes('--force'), agentFlag ? parseAgents(agentFlag.slice('--agent='.length)) : []);
   if (command === 'status') return require('../.claude/harness/board.js').run(path.resolve(dir), flags.includes('--json'));
   console.log(HELP);
   process.exit(1);
