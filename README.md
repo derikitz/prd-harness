@@ -71,6 +71,7 @@ npx prd-harness init --agent=cursor,codex
 These files are generated from the `.claude/` ones, so re-run `init --agent=… --force` after updating the kit. Differences from Claude Code:
 - **Models:** Claude Code uses the `model:` in each agent file (sonnet; haiku for low-risk reviews). These are tier aliases that follow the newest model of that tier; to pin a version, set a full model ID for the agent in `.claude/harness/local.md` (editing the agent file works too, but `init --force` overwrites it). Cursor uses its default model. For Codex, `init` asks for an exact model ID per subagent (for example `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6.1-terra`) and writes it as `model` in `.codex/agents/*.toml`. Your answers are saved under `## Codex models` in `.claude/harness/local.md`, so `init --force` shows them again and Enter keeps them (`-` clears one). Without a terminal it reuses the saved models. A subagent with no model uses your session model.
 - **Read-only reviewer:** Claude Code enforces it with a tool list; the other tools rely on the reviewer's instructions.
+- **`/auto`:** works in Claude Code and Codex (`$auto` in Codex). Cursor isn't supported: `--agent=cursor` alone doesn't install it, and with `--agent=cursor,codex` it lands in the shared `.agents/skills/` folder but isn't tested in Cursor.
 - **Fix rounds:** `/next` continues the same engineer. Cursor can resume a subagent by ID. I couldn't confirm that Codex can, so there the engineer may be restarted with the findings and the task file, which costs more tokens.
 - **Deep security audit:** `/security --deep` (`$security --deep` in Codex) uses Cloudflare's `security-audit` skill, which wants parallel subagents and an OS-level sandbox. Without a sandbox it won't run project code and reports leads as needs-validation.
 - **Your own files are safe:** `--force` replaces files the kit generated, but skips a same-named skill or subagent file you wrote yourself (it prints `skip … not written by prd-harness`). Delete that file if you do want the kit's version.
@@ -148,6 +149,7 @@ Customize any agent — its model, your test framework, conventions — in `.cla
 | `/wbs [import <file>]` | Build or update the WBS from the PRD, or import an existing one |
 | `/tasks [wbs code]` | Turn work packages into task files |
 | `/next [task id]` | Build, check and commit the next ready task |
+| `/auto [--limit=<n>]` | Claude Code and Codex only: run `/next` on up to `n` ready tasks in a row (default 2) |
 | `/bug <what's wrong>` | Log a bug as a task linked to the requirement it breaks |
 | `/status` | Board summary and gaps (read-only) |
 | `/security [area]` | Full security audit; schedule fixes as WBS work |
@@ -206,6 +208,10 @@ npx prd-harness@latest init --force
 ```
 
 This overwrites only the kit's own files in `.claude/agents`, `commands`, `harness` and `skills`. Your `local.md`, PRD, WBS, tasks and docs are never touched.
+
+### Running several tasks in a row
+
+After you've written the PRD, WBS and tasks yourself, `/auto` runs `/next` for you on the next ready tasks, two by default; `/auto --limit=5` for more. It follows every `/next` rule: it never approves a task that needs approval for you, never pushes, and stops at the first blocker, failed check or question only you can answer. It prints one summary at the end. Each task still uses several subagents, so a long run uses a lot of your limits. Claude Code and Codex only.
 
 ### Newer security-audit skill
 

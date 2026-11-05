@@ -67,6 +67,7 @@ The main session acts as project manager: it owns the PRD, WBS and task board, a
 | `/wbs [import <file>]` | Build or update the WBS from the PRD, or import an existing one |
 | `/tasks [wbs code]` | Turn work packages into task files |
 | `/next [task id]` | Pick the next ready task, run the checks its risk needs, commit it |
+| `/auto [--limit=<n>]` | Claude Code and Codex only: run `/next` on up to n ready tasks in a row (default 2), stopping at approval gates, blockers and failed checks |
 | `/bug <what's wrong>` | Log a bug as a task linked to the requirement it breaks |
 | `/security [area]` | Full-project security audit; schedule fixes as WBS work |
 | `/check-sec [full or chapter]` | On demand, not part of `/next`: OWASP ASVS 5.0 check at the PRD's level, results in `docs/compliance.md` |
