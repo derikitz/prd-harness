@@ -1,5 +1,5 @@
 // Builds Cursor and Codex CLI files from the Claude Code agents and commands, so there is one source of truth.
-// Commands become skills in .agents/skills/ (read by both tools); each agent becomes the tool's own subagent file.
+// Commands and the kit's own skills go to .agents/skills/ (read by both tools); each agent becomes the tool's own subagent file.
 const fs = require('fs');
 const path = require('path');
 
@@ -60,25 +60,44 @@ function skillFiles() {
   return files;
 }
 
+// The kit's skills (.claude/skills/<name>/...) copied as they are, so the other tools can discover them too.
+function copiedSkillFiles() {
+  const root = path.join(SOURCE, '.claude/skills');
+  const list = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    return entry.isDirectory() ? list(full) : [full];
+  });
+  return list(root).map((file) => ({
+    rel: path.posix.join('.agents/skills', path.relative(root, file).split(path.sep).join('/')),
+    content: fs.readFileSync(file, 'utf8'),
+  }));
+}
+
 function cursorAgent({ name, fields, body }) {
   return { rel: `.cursor/agents/${name}.md`, content: `---\nname: ${name}\ndescription: ${JSON.stringify(fields.description)}\n---\n\n${body}\n` };
 }
 
-function codexAgent({ name, fields, body }) {
+function codexAgent({ name, fields, body }, models) {
   if (body.includes("'''")) throw new Error(`.claude/agents/${name}.md contains ''' which can't be written to a Codex TOML file.`);
   return {
     rel: `.codex/agents/${name}.toml`,
-    content: `name = ${JSON.stringify(name)}\ndescription = ${JSON.stringify(fields.description)}\ndeveloper_instructions = '''\n${body}\n'''\n`,
+    content: `name = ${JSON.stringify(name)}\ndescription = ${JSON.stringify(fields.description)}\n${models[name] ? `model = ${JSON.stringify(models[name])}
+` : ''}developer_instructions = '''\n${body}\n'''\n`,
   };
 }
 
 // The files to write for the chosen tools: [{ rel, content }]
-function adapterFiles(agents) {
-  const files = skillFiles();
+// models: optional { <agent name>: <Codex model ID> }; agents without an entry use the session's model.
+function adapterFiles(agents, models = {}) {
+  const files = [...skillFiles(), ...copiedSkillFiles()];
   const subagents = listMarkdown('.claude/agents');
   if (agents.includes('cursor')) files.push(...subagents.map(cursorAgent));
-  if (agents.includes('codex')) files.push(...subagents.map(codexAgent));
+  if (agents.includes('codex')) files.push(...subagents.map((agent) => codexAgent(agent, models)));
   return files;
 }
 
-module.exports = { SUPPORTED, parseAgents, adapterFiles };
+function agentNames() {
+  return listMarkdown('.claude/agents').map((a) => a.name);
+}
+
+module.exports = { SUPPORTED, parseAgents, adapterFiles, agentNames };

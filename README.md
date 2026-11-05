@@ -62,14 +62,15 @@ npx prd-harness init --agent=cursor,codex
 
 | Tool | What gets written | How you use it |
 |---|---|---|
-| Both | The commands as skills in `.agents/skills/` | Cursor: type `/prd`, `/next` and so on. Codex: type `$prd`, `$next`, or use `/skills`. Type any arguments after it in the same message. |
+| Both | The commands and the kit's skills (`owasp-checklist`, `security-audit`) in `.agents/skills/` | Cursor: type `/prd`, `/next` and so on. Codex: type `$prd`, `$next`, or use `/skills`. Type any arguments after it in the same message. |
 | Cursor | The four subagents in `.cursor/agents/` | The skills delegate to them by name. |
 | Codex | The four subagents in `.codex/agents/*.toml` | Same. Codex only starts subagents when the prompt asks for one, and the skills do. |
 
 These files are generated from the `.claude/` ones, so re-run `init --agent=… --force` after updating the kit. Differences from Claude Code:
-- **Models:** the subagents use the tool's default model. The kit's per-role model choices (sonnet, haiku) are Claude-only.
+- **Models:** Claude Code uses the `model:` in each agent file (sonnet; haiku for low-risk reviews). Cursor uses its default model. For Codex, `init` asks for an exact model ID per subagent (for example `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6.1-terra`) and writes it as `model` in `.codex/agents/*.toml`. Your answers are saved under `## Codex models` in `.claude/harness/local.md`, so `init --force` shows them again and Enter keeps them (`-` clears one). Without a terminal it reuses the saved models. A subagent with no model uses your session model.
 - **Read-only reviewer:** Claude Code enforces it with a tool list; the other tools rely on the reviewer's instructions.
 - **Fix rounds:** `/next` continues the same engineer. Cursor can resume a subagent by ID. I couldn't confirm that Codex can, so there the engineer may be restarted with the findings and the task file, which costs more tokens.
+- **Deep security audit:** `/security --deep` (`$security --deep` in Codex) uses Cloudflare's `security-audit` skill, which wants parallel subagents and an OS-level sandbox. Without a sandbox it won't run project code and reports leads as needs-validation.
 - **Untested:** these were checked against each tool's docs, not run in the tools.
 
 Other agents (Gemini CLI, Copilot, …) can follow the workflow by hand: point the agent at `AGENTS.md`, give it the matching file from `.claude/commands/` for each step, and run each role in a fresh session from `.claude/agents/`. `node .claude/harness/board.js` works from any shell.

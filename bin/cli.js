@@ -2,7 +2,8 @@
 // Installs the PRD -> WBS -> tasks harness into a project. No dependencies.
 const fs = require('fs');
 const path = require('path');
-const { SUPPORTED, parseAgents, adapterFiles } = require('./adapters');
+const readline = require('readline/promises');
+const { SUPPORTED, parseAgents, adapterFiles, agentNames } = require('./adapters');
 
 const SOURCE = path.resolve(__dirname, '..');
 const HARNESS_DIRS = ['.claude/agents', '.claude/commands', '.claude/harness', '.claude/skills'];
@@ -47,7 +48,52 @@ function workflowSection() {
   return match[0].trim();
 }
 
-function init(target, force, agents) {
+const CODEX_MODELS_HEADING = '## Codex models';
+const CODEX_MODEL_SAMPLES = 'gpt-6-astra, gpt-6.1-sol, gpt-6.1-terra';
+
+// Models saved in LOCAL_FILE under "## Codex models" as "- <agent>: <model ID>" lines.
+function savedCodexModels(localPath) {
+  if (!fs.existsSync(localPath)) return {};
+  const section = fs.readFileSync(localPath, 'utf8').replace(/\r\n/g, '\n').split(/^## /m).find((part) => part.startsWith('Codex models\n'));
+  const models = {};
+  for (const line of (section || '').split('\n')) {
+    const match = line.match(/^- ([\w-]+): (\S+)\s*$/);
+    if (match) models[match[1]] = match[2];
+  }
+  return models;
+}
+
+function saveCodexModels(localPath, models) {
+  const text = fs.readFileSync(localPath, 'utf8').replace(/\r\n/g, '\n');
+  const rest = text.replace(/\n?## Codex models\n[\s\S]*?(?=\n## |$)/, '').trimEnd();
+  const lines = Object.entries(models).map(([name, model]) => '- ' + name + ': ' + model);
+  fs.writeFileSync(localPath, rest + '\n\n' + CODEX_MODELS_HEADING + '\n' + lines.join('\n') + '\n');
+}
+
+// Asks which Codex model each subagent should use. Enter keeps the saved model (or the session model if none), "-" clears it.
+async function askCodexModels(saved) {
+  if (!process.stdin.isTTY) {
+    log('note', 'not a terminal: Codex subagents use the models saved in ' + LOCAL_FILE + ', else the session model');
+    return { models: saved, asked: false };
+  }
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const models = {};
+  try {
+    console.log('\nCodex model per subagent: type the exact model ID (e.g. ' + CODEX_MODEL_SAMPLES + ').');
+    console.log('Enter = keep the shown value or use the session model, "-" = clear.');
+    for (const name of agentNames()) {
+      const shown = saved[name] ? ' [' + saved[name] + ']' : '';
+      const answer = (await rl.question('  ' + name + shown + ': ')).trim();
+      const model = answer === '-' ? '' : answer || saved[name];
+      if (model) models[name] = model;
+    }
+  } finally {
+    rl.close();
+  }
+  return { models, asked: true };
+}
+
+async function init(target, force, agents) {
   if (!fs.existsSync(target)) throw new Error(`Target folder does not exist: ${target}`);
   if (path.resolve(target) === SOURCE) throw new Error('Target is the harness package itself. Pass a project folder.');
 
@@ -67,8 +113,10 @@ function init(target, force, agents) {
   }
 
   // Files for other coding agents, generated from the Claude Code ones
+  let codex = { models: {}, asked: false };
   if (agents.length) {
-    for (const { rel, content } of adapterFiles(agents)) {
+    if (agents.includes('codex')) codex = await askCodexModels(savedCodexModels(path.join(target, LOCAL_FILE)));
+    for (const { rel, content } of adapterFiles(agents, codex.models)) {
       const dest = path.join(target, rel);
       if (fs.existsSync(dest) && !force) {
         log('skip', `${rel} (exists; use --force to overwrite)`);
@@ -86,6 +134,7 @@ function init(target, force, agents) {
     fs.copyFileSync(path.join(SOURCE, '.claude/harness/templates/local.md'), localPath);
     log('created', LOCAL_FILE);
   }
+  if (codex.asked) saveCodexModels(localPath, codex.models);
 
   // 2. Project folders
   for (const dir of PROJECT_DIRS) {
@@ -147,7 +196,7 @@ function findPlanningDocs(target) {
     .filter((file) => !HARNESS_DOCS.includes(file));
 }
 
-function main(argv) {
+async function main(argv) {
   const flags = argv.filter((a) => a.startsWith('-'));
   const [command, dir = '.'] = argv.filter((a) => !a.startsWith('-'));
 
@@ -161,9 +210,7 @@ function main(argv) {
   process.exit(1);
 }
 
-try {
-  main(process.argv.slice(2));
-} catch (err) {
+main(process.argv.slice(2)).catch((err) => {
   console.error(`prd-harness: ${err.message}`);
   process.exit(1);
-}
+});
