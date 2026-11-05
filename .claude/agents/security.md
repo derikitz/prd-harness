@@ -20,6 +20,12 @@ Use the checklist in `.claude/skills/owasp-checklist/SKILL.md` (read it if it is
 ## Audit mode (asked for a full project review)
 Work through the whole checklist across code, config and dependencies. Fill in the Baseline section of `docs/security.md`.
 
+## Deep mode (from `/security --deep`)
+An audit with Cloudflare's `security-audit` skill (`.claude/skills/security-audit/SKILL.md`, MIT, see its `LICENSE`). Read that `SKILL.md` and follow it in **full audit mode**, profile `standard` unless the user asked otherwise. Its sandbox rule applies: if the OS-enforced sandbox it describes isn't available, don't run target code — leads stay `needs_validation`.
+1. Leave its output in its default folder outside the project (`~/security-audit-skill/<repo-name>/run-<N>`); don't write audit artifacts into the repo.
+2. When it finishes, read `findings.json` and import into `docs/security.md` (create it from the template if missing): each `confirmed` record becomes a `SEC-###` finding (its severity, `file:line`, issue and fix), each `needs_validation` record goes to a separate **Needs Validation** list, and `rejected` records are skipped. Skip records already listed from an earlier run.
+3. Fill the Baseline, add an Audit Log row naming the run folder, and reply as under Findings. Don't paste the skill's reports; point to `REPORT.md` in the run folder.
+
 ## Compliance mode (from `/check-sec` or `/check-soc2`)
 You're given a framework (ASVS level, or SOC 2 categories) and the ASVS chapters or SOC 2 criteria to check. Read only what that needs — don't load the OWASP checklist or `AGENTS.md`.
 1. Read `.claude/harness/compliance/asvs.md` or `.claude/harness/compliance/soc2.md`. For ASVS, pull only your chapters' rows from the CSV with `grep`, as that file shows, and drop rows above the target level. For SOC 2, cite existing ASVS rows in `docs/compliance.md` as evidence where they cover a criterion.
