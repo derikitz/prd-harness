@@ -207,15 +207,28 @@ npx prd-harness@latest init --force
 
 This overwrites only the kit's own files in `.claude/agents`, `commands`, `harness` and `skills`. Your `local.md`, PRD, WBS, tasks and docs are never touched.
 
+### Newer security-audit skill
+
+The package bundles a reviewed copy of Cloudflare's `security-audit` skill, used by `/security --deep`. To fetch the latest one from GitHub instead, add `--update-skills` (needs git and network access):
+
+```bash
+npx prd-harness@latest init --update-skills
+```
+
+To pin a specific version instead, pass a branch, tag or **full** commit hash: `--update-skills=<ref>`.
+
+This is opt-in on purpose: the skill is instructions your agents will follow, so a newer version is code you haven't had reviewed. `init` prints the commit it fetched, and if the download fails it stops before changing anything.
+
 ## CLI reference
 
 ```
-prd-harness init [dir] [--force] [--agent=<tools>]   Install the harness into a project
+prd-harness init [dir] [--force] [--agent=<tools>] [--update-skills[=<ref>]]   Install the harness into a project
 prd-harness status [dir] [--json]                    Show the board, ready tasks and traceability gaps
 
   dir         Project folder (default: current folder)
   --force     init: overwrite the kit's files with this version
   --agent=    init: also write files for cursor and/or codex (comma-separated)
+  --update-skills  init: fetch the security-audit skill from GitHub instead of the bundled copy (=<ref> for a branch, tag or full commit hash)
   --json      status: machine-readable output
   --help      Show help
   --version   Show version

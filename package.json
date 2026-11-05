@@ -11,6 +11,9 @@
   "bin": {
     "prd-harness": "bin/cli.js"
   },
+  "scripts": {
+    "update:security-audit": "node scripts/update-security-audit.js"
+  },
   "files": [
     "bin",
     "AGENTS.md",

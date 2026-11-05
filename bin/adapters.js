@@ -63,8 +63,7 @@ function skillFiles() {
 }
 
 // The kit's skills (.claude/skills/<name>/...) copied as they are, so the other tools can discover them too.
-function copiedSkillFiles() {
-  const root = path.join(SOURCE, '.claude/skills');
+function copiedSkillFiles(root) {
   const list = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(dir, entry.name);
     return entry.isDirectory() ? list(full) : [full];
@@ -91,8 +90,9 @@ function codexAgent({ name, fields, body }, models) {
 
 // The files to write for the chosen tools: [{ rel, content }]
 // models: optional { <agent name>: <Codex model ID> }; agents without an entry use the session's model.
-function adapterFiles(agents, models = {}) {
-  const files = [...skillFiles(), ...copiedSkillFiles()];
+// skillsRoot: where the kit's skills are copied from (the package's own, or a project's after `init --update-skills`).
+function adapterFiles(agents, models = {}, skillsRoot = path.join(SOURCE, '.claude/skills')) {
+  const files = [...skillFiles(), ...copiedSkillFiles(skillsRoot)];
   const subagents = listMarkdown('.claude/agents');
   if (agents.includes('cursor')) files.push(...subagents.map(cursorAgent));
   if (agents.includes('codex')) files.push(...subagents.map((agent) => codexAgent(agent, models)));

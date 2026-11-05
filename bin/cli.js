@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline/promises');
+const { fetchSecurityAudit, writeSecurityAudit } = require('./update-skill');
 const { SUPPORTED, parseAgents, adapterFiles, agentNames, isKitFile } = require('./adapters');
 
 const SOURCE = path.resolve(__dirname, '..');
@@ -17,12 +18,13 @@ const HARNESS_DOCS = ['docs/prd.md', 'docs/wbs.md'];
 const WORKTREES_IGNORE = '.claude/worktrees/';
 
 const HELP = `Usage:
-  prd-harness init [dir] [--force] [--agent=<tools>]   Install the harness into a project (default: current folder)
+  prd-harness init [dir] [--force] [--agent=<tools>] [--update-skills[=<ref>]]   Install the harness into a project (default: current folder)
   prd-harness status [dir] [--json]                    Show the task board, ready tasks and traceability gaps
 
 Options:
   --force     init: overwrite the kit's files (.claude/agents, commands, harness, skills) with this version
   --agent=    init: also write files for other coding agents, comma-separated: ${SUPPORTED.join(', ')}
+  --update-skills  init: fetch the security-audit skill from GitHub instead of the bundled copy: latest, or =<branch|tag|full commit hash> (needs git and network)
   --json      status: machine-readable output
   --help      Show this help
   --version   Show version
@@ -93,9 +95,13 @@ async function askCodexModels(saved) {
   return { models, asked: true };
 }
 
-async function init(target, force, agents) {
+// updateSkills: undefined = use the bundled skill, '' = fetch the latest, otherwise the ref to fetch
+async function init(target, force, agents, updateSkills) {
   if (!fs.existsSync(target)) throw new Error(`Target folder does not exist: ${target}`);
   if (path.resolve(target) === SOURCE) throw new Error('Target is the harness package itself. Pass a project folder.');
+
+  // Fetch first, so a failed download changes nothing in the project
+  const fetched = updateSkills === undefined ? null : fetchSecurityAudit(updateSkills || undefined);
 
   // 1. Harness-owned files
   for (const dir of HARNESS_DIRS) {
@@ -111,12 +117,17 @@ async function init(target, force, agents) {
       log('copied', rel);
     }
   }
+  const skillsRoot = path.join(target, '.claude/skills');
+  if (fetched) {
+    writeSecurityAudit(path.join(skillsRoot, 'security-audit'), fetched);
+    log('updated', `.claude/skills/security-audit (from GitHub, commit ${fetched.commit})`);
+  }
 
   // Files for other coding agents, generated from the Claude Code ones
   let codex = { models: {}, asked: false };
   if (agents.length) {
     if (agents.includes('codex')) codex = await askCodexModels(savedCodexModels(path.join(target, LOCAL_FILE)));
-    for (const { rel, content, generated } of adapterFiles(agents, codex.models)) {
+    for (const { rel, content, generated } of adapterFiles(agents, codex.models, fetched ? skillsRoot : undefined)) {
       const dest = path.join(target, rel);
       if (fs.existsSync(dest) && !force) {
         log('skip', `${rel} (exists; use --force to overwrite)`);
@@ -201,6 +212,11 @@ function findPlanningDocs(target) {
     .filter((file) => !HARNESS_DOCS.includes(file));
 }
 
+function updateSkillsRef(flags) {
+  const flag = flags.find((f) => f === '--update-skills' || f.startsWith('--update-skills='));
+  return flag === undefined ? undefined : flag.slice('--update-skills='.length);
+}
+
 async function main(argv) {
   const flags = argv.filter((a) => a.startsWith('-'));
   const [command, dir = '.'] = argv.filter((a) => !a.startsWith('-'));
@@ -209,7 +225,7 @@ async function main(argv) {
   if (flags.includes('--help') || !command) return console.log(HELP);
   const agentFlag = flags.find((f) => f === '--agent' || f.startsWith('--agent='));
   if (agentFlag === '--agent') throw new Error('Use --agent=<tools>, e.g. --agent=cursor,codex.');
-  if (command === 'init') return init(path.resolve(dir), flags.includes('--force'), agentFlag ? parseAgents(agentFlag.slice('--agent='.length)) : []);
+  if (command === 'init') return init(path.resolve(dir), flags.includes('--force'), agentFlag ? parseAgents(agentFlag.slice('--agent='.length)) : [], updateSkillsRef(flags));
   if (command === 'status') return require('../.claude/harness/board.js').run(path.resolve(dir), flags.includes('--json'));
   console.log(HELP);
   process.exit(1);
