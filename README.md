@@ -42,6 +42,8 @@ Use your project's package manager's one-off runner in place of `npx` in any com
 
 If `npx` fails with `EBADDEVENGINES`, your project's `package.json` pins another package manager (`devEngines.packageManager`) and npm refuses to run in it. Use that package manager's runner from the table. Don't use `pnpm add prd-harness` or similar: that only adds it as a dependency and doesn't install the harness into your project.
 
+To pass flags through a runner, put `--` before them: `pnpm dlx prd-harness init -- --force --agent=codex`. Without it, `--force` can be taken by pnpm itself and `init` shows only the option menu.
+
 Then, inside Claude Code:
 
 | New project | Existing project |
@@ -71,6 +73,7 @@ These files are generated from the `.claude/` ones, so re-run `init --agent=… 
 - **Read-only reviewer:** Claude Code enforces it with a tool list; the other tools rely on the reviewer's instructions.
 - **Fix rounds:** `/next` continues the same engineer. Cursor can resume a subagent by ID. I couldn't confirm that Codex can, so there the engineer may be restarted with the findings and the task file, which costs more tokens.
 - **Deep security audit:** `/security --deep` (`$security --deep` in Codex) uses Cloudflare's `security-audit` skill, which wants parallel subagents and an OS-level sandbox. Without a sandbox it won't run project code and reports leads as needs-validation.
+- **Your own files are safe:** `--force` replaces files the kit generated, but skips a same-named skill or subagent file you wrote yourself (it prints `skip … not written by prd-harness`). Delete that file if you do want the kit's version.
 - **Untested:** these were checked against each tool's docs, not run in the tools.
 
 Other agents (Gemini CLI, Copilot, …) can follow the workflow by hand: point the agent at `AGENTS.md`, give it the matching file from `.claude/commands/` for each step, and run each role in a fresh session from `.claude/agents/`. `node .claude/harness/board.js` works from any shell.

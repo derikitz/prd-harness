@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline/promises');
-const { SUPPORTED, parseAgents, adapterFiles, agentNames } = require('./adapters');
+const { SUPPORTED, parseAgents, adapterFiles, agentNames, isKitFile } = require('./adapters');
 
 const SOURCE = path.resolve(__dirname, '..');
 const HARNESS_DIRS = ['.claude/agents', '.claude/commands', '.claude/harness', '.claude/skills'];
@@ -116,10 +116,15 @@ async function init(target, force, agents) {
   let codex = { models: {}, asked: false };
   if (agents.length) {
     if (agents.includes('codex')) codex = await askCodexModels(savedCodexModels(path.join(target, LOCAL_FILE)));
-    for (const { rel, content } of adapterFiles(agents, codex.models)) {
+    for (const { rel, content, generated } of adapterFiles(agents, codex.models)) {
       const dest = path.join(target, rel);
       if (fs.existsSync(dest) && !force) {
         log('skip', `${rel} (exists; use --force to overwrite)`);
+        continue;
+      }
+      // --force replaces the kit's own files, never a same-named file the project wrote itself
+      if (fs.existsSync(dest) && generated && !isKitFile(fs.readFileSync(dest, 'utf8'))) {
+        log('skip', `${rel} (not written by prd-harness; delete it to let init replace it)`);
         continue;
       }
       fs.mkdirSync(path.dirname(dest), { recursive: true });
